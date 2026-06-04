@@ -1,0 +1,20 @@
+[project]
+name = "problemform"
+version = "0.1.0"
+description = "A human-AI collaborative problem formulation and reasoning system."
+requires-python = ">=3.11"
+
+dependencies = [
+    "pydantic",
+    "typer",
+    "rich",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
