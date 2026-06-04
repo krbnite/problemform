@@ -16,9 +16,13 @@ ProblemForm relies heavily on structured state (ProblemState) that evolves throu
 
 ### Common Usage
 
-python from pydantic import BaseModel, Field 
+```python
+from pydantic import BaseModel, Field
 
-python class ProblemState(BaseModel):     raw_input: str     assumptions: list[str] = Field(default_factory=list) 
+class ProblemState(BaseModel):
+    raw_input: str
+    assumptions: list[str] = Field(default_factory=list)
+```
 
 ### Important Features
 
@@ -44,9 +48,15 @@ The MVP exposes ProblemForm functionality through a CLI.
 
 ### Common Usage
 
-python import typer  app = typer.Typer() 
+```python
+import typer
 
-python @app.command() def assess(question: str):     ... 
+app = typer.Typer()
+
+@app.command()
+def analyze(prompt: str):
+    ...
+```
 
 ### Important Features
 
@@ -71,9 +81,12 @@ ProblemForm generates structured analysis that benefits from improved readabilit
 
 ### Common Usage
 
-python from rich.console import Console 
+```python
+from rich.console import Console
 
-python console.print(...) 
+console = Console()
+console.print(...)
+```
 
 ### Important Features
 
@@ -100,7 +113,10 @@ Ensures ProblemForm behavior remains stable as the system evolves.
 
 ### Common Usage
 
-python def test_problem_state():     ... 
+```python
+def test_problem_state():
+    ...
+```
 
 ### Important Features
 
@@ -126,7 +142,9 @@ The MVP uses a single language model operating under the ProblemForm Constitutio
 
 ### Common Usage
 
-python from openai import OpenAI 
+```python
+from openai import OpenAI
+```
 
 ### Important Features
 
@@ -152,7 +170,9 @@ MVP++ implements the ProblemForm architecture as a graph of specialized workflow
 
 ### Common Usage
 
-python StateGraph(...) 
+```python
+StateGraph(...)
+```
 
 ### Important Features
 

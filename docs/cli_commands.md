@@ -207,51 +207,9 @@ Purpose:
 - Experimentation with custom workflows
 - Re-running one phase without re-running the full pipeline
 
----
-
-## agent
-
-Execute a single ProblemForm agent against an existing ProblemState.
-
-Runs exactly one agent phase and updates the ProblemState with the results.
-
-Examples:
-
-bash problemform agent objective-analysis state.json 
-
-bash problemform agent assumption-excavation state.json 
-
-bash problemform agent expert-panel state.json 
-
-bash problemform agent prompt-synthesis state.json 
-
-Supported agents may include:
-
-- objective-analysis
-- assumption-excavation
-- information-gap-detection
-- expert-panel
-- alternative-framing
-- meta-questions
-- prompt-synthesis
-- convergence-evaluation
-
-Outputs:
-
-- Updated ProblemState
-- Agent-specific results
-
-Purpose:
-
-- Experiment with custom workflows
-- Re-run specific phases
-- Explore alternative refinement paths
-- Debug individual agents
-- Perform manual orchestration
-
 Notes:
 
-- agent is an advanced command intended for experimentation, debugging, and workflow customization.
-- The standard ProblemForm workflow should normally be executed using analyze, synthesize, judge, or run.
+- `agent` is an advanced command intended for experimentation, debugging, and workflow customization.
+- The standard ProblemForm workflow should normally be executed via `analyze`, `synthesize`, `judge`, or `run`.
 - Agents may be executed multiple times against the same ProblemState.
 - Users are responsible for ensuring that the resulting workflow remains logically coherent when manually orchestrating agents.

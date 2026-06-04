@@ -5,10 +5,10 @@ description = "A human-AI collaborative problem formulation and reasoning system
 requires-python = ">=3.11"
 
 dependencies = [
-    "pydantic",
-    "typer",
-    "rich",
-    "python-dotenv",
+    "pydantic>=2",
+    "typer>=0.12",
+    "rich>=13",
+    "python-dotenv>=1",
 ]
 
 [project.optional-dependencies]
