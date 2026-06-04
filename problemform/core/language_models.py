@@ -3,8 +3,6 @@ from __future__ import annotations
 import os
 from typing import Protocol, TypeVar
 
-from anthropic import Anthropic
-from openai import OpenAI
 from pydantic import BaseModel, ValidationError
 
 
@@ -41,6 +39,13 @@ class StructuredOutputError(LLMError):
 
 class OpenAIProvider:
     def __init__(self, model: str):
+        try:
+            from openai import OpenAI
+        except ImportError as exc:
+            raise ImportError(
+                "OpenAIProvider requires the 'openai' package. "
+                "Install it with `pip install problemform[openai]`."
+            ) from exc
         self.client = OpenAI()
         self.model = model
 
@@ -88,6 +93,13 @@ class OpenAIProvider:
 
 class AnthropicProvider:
     def __init__(self, model: str):
+        try:
+            from anthropic import Anthropic
+        except ImportError as exc:
+            raise ImportError(
+                "AnthropicProvider requires the 'anthropic' package. "
+                "Install it with `pip install problemform[anthropic]`."
+            ) from exc
         self.client = Anthropic()
         self.model = model
 
