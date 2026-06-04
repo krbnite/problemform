@@ -1,8 +1,21 @@
 [project]
 name = "problemform"
-version = "0.1.0"
+version = "0.1.1"
 description = "A human-AI collaborative problem formulation and reasoning system."
+authors = [
+  {name = "Kevin Urban"}
+]
+keywords = [
+  "llm",
+  "prompt-engineering",
+  "agent",
+  "reasoning",
+  "evaluation"
+]
 requires-python = ">=3.11"
+license = {text = "MIT"}
+readme = "README.md"
+
 
 dependencies = [
     "pydantic>=2",
