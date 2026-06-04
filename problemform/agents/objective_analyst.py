@@ -33,7 +33,7 @@ Where:
 - objective_alignment describes any meaningful difference between the two objectives.
 - rationale explains the reasoning behind the analysis.
 
-User Input:
+Available Context:
 
-{raw_input}
+{problem_context}
 """

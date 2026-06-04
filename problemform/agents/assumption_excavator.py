@@ -42,7 +42,7 @@ Return a JSON object with the following structure:
   "assumptions": [
     {
       "assumption": "...",
-      "type": "explicit | implicit | questionable",
+      "assumption_type": "explicit | implicit | questionable",
       "importance": "low | medium | high",
       "impact_if_wrong": "...",
       "rationale": "..."
@@ -53,7 +53,7 @@ Return a JSON object with the following structure:
 Where:
 
 - assumption is a concise statement of the assumption.
-- type identifies the nature of the assumption.
+- assumption_type identifies the nature of the assumption.
 - importance estimates how much the assumption affects the formulation.
 - impact_if_wrong describes what changes if the assumption is invalid.
 - rationale explains why the assumption was identified.

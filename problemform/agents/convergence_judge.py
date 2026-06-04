@@ -64,5 +64,5 @@ Guidance:
 
 Current ProblemState:
 
-{problem_state}
+{problem_context}
 """
