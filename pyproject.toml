@@ -8,15 +8,17 @@ dependencies = [
     "pydantic",
     "typer",
     "rich",
-    "openai",
-    "anthropic",
     "python-dotenv",
 ]
 
 [project.optional-dependencies]
-dev = [
-    "pytest",
-]
+openai = ["openai"]
+anthropic = ["anthropic"]
+all = ["openai", "anthropic"]
+dev = ["pytest", "openai", "anthropic"]
+
+[project.scripts]
+problemform = "problemform.cli:app"
 
 [build-system]
 requires = ["setuptools>=61"]
