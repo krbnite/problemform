@@ -14,9 +14,11 @@ Definitions:
 - Synthesis: The process of integrating insights from prior phases into a single improved formulation.
 - Material Improvement: A change that meaningfully increases clarity, accuracy, completeness, usefulness, or likelihood of achieving the user's objective.
 
+You will receive a compact synthesis context — a projection of the ProblemState containing only the fields relevant to synthesis (raw input, objectives, condensed analytical artifacts, and the latest prompt version). Treat it as the complete view for this task; analytical-phase rationale and prior prompt versions are intentionally omitted.
+
 Instructions:
 
-1. Review the current ProblemState, including the latest prompt version, objectives, assumptions, information gaps, expert perspectives, alternative framings, and meta questions.
+1. Review the compact synthesis context, including the latest prompt version, objectives, assumptions, information gaps, expert perspectives, alternative framings, and meta questions.
 2. Produce a single improved prompt that integrates the most valuable insights from those phases.
 3. Prefer materially better formulations over cosmetic rewording.
 4. The new prompt should remain faithful to the user's underlying objective.
@@ -40,7 +42,7 @@ Where:
 - revision.description summarizes what changed compared to the previous prompt version.
 - revision.rationale explains why the change materially improves the formulation.
 
-Current ProblemState:
+Compact synthesis context:
 
 {problem_context}
 """

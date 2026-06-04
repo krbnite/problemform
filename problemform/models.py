@@ -116,6 +116,7 @@ class PromptRefinementResult(BaseModel):
 class ConvergenceResult(BaseModel):
     convergence_status: ConvergenceStatus
     rationale: str
+    prompt_delta_assessment: str | None = None
     remaining_opportunities: list[str] = Field(default_factory=list)
 
 
@@ -130,6 +131,7 @@ class ProblemState(BaseModel):
     meta_questions: list[MetaQuestion] = Field(default_factory=list)
     prompt_versions: list[PromptVersion] = Field(default_factory=list)
     convergence_status: ConvergenceStatus = "NOT_CONVERGED"
+    last_convergence: ConvergenceResult | None = None
     phase: Phase = "INITIAL_INPUT"
     final_prompt: str | None = None
 
