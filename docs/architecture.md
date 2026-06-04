@@ -22,7 +22,7 @@ Alternative Framings
 ↓
 Meta Questions
 ↓
-Refinement
+Refinement/Synthesis
 ↓
 Convergence Assessment -> Objective Analysis (if not converged)
 ↓
