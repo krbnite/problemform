@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+
+## [0.1.1] - Post-MVP Hardening 
+
+### Added
+- Provider response hardening for OpenAI and Anthropic.
+- More comprehensive provider failure-mode tests.
+
+### Changed
+- Added dependency lower bounds for core packages.
+- Agent command now updates ProblemState phase consistently with the main workflow.
+- Added validation requiring --max-iterations >= 1.
+- Updated installation documentation to use optional dependency extras.
+- Refreshed CLI, environment, dependency, roadmap, and README documentation.
+
+### Fixed
+- Improved handling of truncated, refused, filtered, and empty provider responses.
+- Removed duplicate agent documentation.
+- Corrected outdated command references and module mappings.
+
+
 ## [v0.1.0] - MVP
 
 ### Added
