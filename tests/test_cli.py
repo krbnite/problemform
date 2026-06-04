@@ -328,3 +328,45 @@ def test_agent_prints_to_stdout_when_no_output_flag(runner, tmp_path: Path):
     assert res.exit_code == 0, res.stderr
     state = _state_from_json(res.stdout)
     assert state.stated_objective == "stated"
+
+
+# ---------- max_iterations validation --------------------------------------
+
+
+def test_run_zero_max_iterations_is_rejected(runner):
+    res = runner.invoke(app, ["run", "q", "--max-iterations", "0"])
+    assert res.exit_code != 0
+    assert "max-iterations" in (res.stderr + res.output).lower() or "0" in (res.stderr + res.output)
+
+
+def test_run_negative_max_iterations_is_rejected(runner):
+    res = runner.invoke(app, ["run", "q", "--max-iterations", "-3"])
+    assert res.exit_code != 0
+
+
+# ---------- agent updates state.phase --------------------------------------
+
+
+@pytest.mark.parametrize(
+    "agent_name, expected_phase",
+    [
+        ("objective-analysis",        "OBJECTIVE_ANALYSIS"),
+        ("assumption-excavation",     "ASSUMPTION_EXCAVATION"),
+        ("information-gap-detection", "INFORMATION_GAP_DETECTION"),
+        ("expert-panel",              "EXPERT_PANEL_GENERATION"),
+        ("alternative-framing",       "ALTERNATIVE_FRAMING"),
+        ("meta-questions",            "META_QUESTION_GENERATION"),
+        ("prompt-synthesis",          "PROMPT_REFINEMENT"),
+        ("convergence-evaluation",    "CONVERGENCE_EVALUATION"),
+    ],
+)
+def test_agent_updates_state_phase(runner, tmp_path: Path, agent_name, expected_phase):
+    state_path = _bootstrap_state(runner, tmp_path)
+    out_path = tmp_path / "out.json"
+    res = runner.invoke(
+        app,
+        ["agent", agent_name, str(state_path), "--output", str(out_path)],
+    )
+    assert res.exit_code == 0, res.stderr
+    state = ProblemState.model_validate_json(out_path.read_text())
+    assert state.phase == expected_phase

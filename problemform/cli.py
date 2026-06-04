@@ -10,6 +10,7 @@ from rich.markdown import Markdown
 import problemform.config  # noqa: F401  triggers load_dotenv()
 from problemform.cli_render import render_markdown
 from problemform.core.language_models import make_provider
+from problemform.core.state import transition_to_phase
 from problemform.core.workflow import (
     alternative_framing,
     analyze as do_analyze,
@@ -156,7 +157,7 @@ def judge(
 @app.command()
 def run(
     prompt: str = typer.Argument(..., help="Raw input prompt"),
-    max_iterations: int = typer.Option(1, "--max-iterations"),
+    max_iterations: int = typer.Option(1, "--max-iterations", min=1),
     provider: str = ProviderOpt,
     model: str = ModelOpt,
     format: str = FormatOpt,
@@ -174,15 +175,15 @@ def run(
         _emit(out, format)
 
 
-AGENT_COMMANDS = {
-    "objective-analysis": objective_analysis,
-    "assumption-excavation": assumption_excavation,
-    "information-gap-detection": information_gap_detection,
-    "expert-panel": expert_panel_generation,
-    "alternative-framing": alternative_framing,
-    "meta-questions": meta_question_generation,
-    "prompt-synthesis": prompt_refinement,
-    "convergence-evaluation": convergence_evaluation,
+AGENT_COMMANDS: dict[str, tuple[Phase, "object"]] = {
+    "objective-analysis":         ("OBJECTIVE_ANALYSIS",         objective_analysis),
+    "assumption-excavation":      ("ASSUMPTION_EXCAVATION",      assumption_excavation),
+    "information-gap-detection":  ("INFORMATION_GAP_DETECTION",  information_gap_detection),
+    "expert-panel":               ("EXPERT_PANEL_GENERATION",    expert_panel_generation),
+    "alternative-framing":        ("ALTERNATIVE_FRAMING",        alternative_framing),
+    "meta-questions":             ("META_QUESTION_GENERATION",   meta_question_generation),
+    "prompt-synthesis":           ("PROMPT_REFINEMENT",          prompt_refinement),
+    "convergence-evaluation":     ("CONVERGENCE_EVALUATION",     convergence_evaluation),
 }
 
 
@@ -213,16 +214,18 @@ def agent(
       expert-panel, alternative-framing, meta-questions,
       prompt-synthesis, convergence-evaluation
     """
-    handler = AGENT_COMMANDS.get(name)
-    if handler is None:
+    entry = AGENT_COMMANDS.get(name)
+    if entry is None:
         supported = ", ".join(AGENT_COMMANDS.keys())
         _die(f"Unknown agent {name!r}. Supported: {supported}")
+    phase, handler = entry
 
     try:
         s = _load_state(state_path)
     except ValueError as exc:
         _die(f"failed to parse state JSON at {state_path}: {exc}")
 
+    s = transition_to_phase(s, phase)
     out = handler(s, make_provider(provider, model))
 
     if output is None:
