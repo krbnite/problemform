@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 import typer
@@ -9,7 +10,7 @@ from rich.markdown import Markdown
 
 import problemform.config  # noqa: F401  triggers load_dotenv()
 from problemform.cli_render import render_markdown
-from problemform.core.language_models import make_provider
+from problemform.core.language_models import StructuredOutputError, make_provider
 from problemform.core.state import transition_to_phase
 from problemform.core.workflow import (
     alternative_framing,
@@ -60,8 +61,51 @@ def _die(msg: str) -> None:
 def _load_state(path: Path | None) -> ProblemState | None:
     if path is None:
         return None
-    text = sys.stdin.read() if str(path) == "-" else Path(path).read_text()
-    return ProblemState.model_validate_json(text)
+    if str(path) == "-":
+        text = sys.stdin.read()
+    else:
+        try:
+            text = Path(path).read_text()
+        except OSError as exc:
+            _die(f"could not read state file {path}: {exc}")
+    try:
+        return ProblemState.model_validate_json(text)
+    except ValueError as exc:
+        _die(f"failed to parse state JSON at {path}: {exc}")
+
+
+def _write_text_or_die(path: Path, text: str) -> None:
+    """Write a file, surfacing OSError as a friendly CLI error."""
+    try:
+        path.write_text(text)
+    except OSError as exc:
+        _die(f"could not write file {path}: {exc}")
+
+
+def _make_provider_or_die(provider, model):
+    """Build a provider, surfacing the two known user-facing init errors."""
+    try:
+        return make_provider(provider, model)
+    except ValueError as exc:
+        # Unknown provider name from make_provider.
+        _die(f"provider error: {exc}")
+    except ImportError as exc:
+        # SDK extra not installed (raised by the lazy import inside the provider).
+        _die(str(exc))
+
+
+@contextmanager
+def _structured_output_errors():
+    """Convert provider structured-output failures into a clean CLI error.
+
+    Catches the public umbrella ``StructuredOutputError`` (and its subclasses
+    ``TruncatedResponseError``, ``RefusalError``, ``EmptyResponseError``,
+    ``ContentFilterError``) without intercepting unexpected errors.
+    """
+    try:
+        yield
+    except StructuredOutputError as exc:
+        _die(f"LLM provider error: {exc}")
 
 
 def _save_state(state: ProblemState, path: Path | None) -> bool:
@@ -72,7 +116,7 @@ def _save_state(state: ProblemState, path: Path | None) -> bool:
     if str(path) == "-":
         sys.stdout.write(payload + "\n")
         return True
-    Path(path).write_text(payload)
+    _write_text_or_die(Path(path), payload)
     return False
 
 
@@ -94,7 +138,7 @@ def _make_progress(checkpoint: Path | None):
         return _progress
 
     def on_phase(phase: Phase, state: ProblemState) -> None:
-        Path(checkpoint).write_text(state.model_dump_json(indent=2))
+        _write_text_or_die(Path(checkpoint), state.model_dump_json(indent=2))
         err.log(f"[dim]✓ {phase} (checkpoint: {checkpoint})")
 
     return on_phase
@@ -115,7 +159,9 @@ def analyze(
     base: str | ProblemState | None = loaded if loaded is not None else prompt
     if base is None:
         _die("PROMPT or --state required")
-    out = do_analyze(base, make_provider(provider, model), on_phase=_make_progress(checkpoint))
+    provider_obj = _make_provider_or_die(provider, model)
+    with _structured_output_errors():
+        out = do_analyze(base, provider_obj, on_phase=_make_progress(checkpoint))
     if not _save_state(out, save):
         _emit(out, format)
 
@@ -132,7 +178,9 @@ def synthesize(
     s = _load_state(state)
     if s is None:
         _die("--state required for synthesize")
-    out = do_synthesize(s, make_provider(provider, model))
+    provider_obj = _make_provider_or_die(provider, model)
+    with _structured_output_errors():
+        out = do_synthesize(s, provider_obj)
     if not _save_state(out, save):
         _emit(out, format)
 
@@ -149,7 +197,9 @@ def judge(
     s = _load_state(state)
     if s is None:
         _die("--state required for judge")
-    out = do_judge(s, make_provider(provider, model))
+    provider_obj = _make_provider_or_die(provider, model)
+    with _structured_output_errors():
+        out = do_judge(s, provider_obj)
     if not _save_state(out, save):
         _emit(out, format)
 
@@ -165,12 +215,14 @@ def run(
     checkpoint: Path = CheckpointOpt,
 ) -> None:
     """Loop the full pipeline until CONVERGED or max_iterations."""
-    out = do_run(
-        prompt,
-        make_provider(provider, model),
-        max_iterations=max_iterations,
-        on_phase=_make_progress(checkpoint),
-    )
+    provider_obj = _make_provider_or_die(provider, model)
+    with _structured_output_errors():
+        out = do_run(
+            prompt,
+            provider_obj,
+            max_iterations=max_iterations,
+            on_phase=_make_progress(checkpoint),
+        )
     if not _save_state(out, save):
         _emit(out, format)
 
@@ -220,18 +272,16 @@ def agent(
         _die(f"Unknown agent {name!r}. Supported: {supported}")
     phase, handler = entry
 
-    try:
-        s = _load_state(state_path)
-    except ValueError as exc:
-        _die(f"failed to parse state JSON at {state_path}: {exc}")
-
+    s = _load_state(state_path)
     s = transition_to_phase(s, phase)
-    out = handler(s, make_provider(provider, model))
+    provider_obj = _make_provider_or_die(provider, model)
+    with _structured_output_errors():
+        out = handler(s, provider_obj)
 
     if output is None:
         _emit(out, format)
     else:
-        Path(output).write_text(out.model_dump_json(indent=2))
+        _write_text_or_die(Path(output), out.model_dump_json(indent=2))
 
 
 @app.command()
@@ -265,7 +315,7 @@ def export(
     if output is None:
         sys.stdout.write(text if text.endswith("\n") else text + "\n")
     else:
-        Path(output).write_text(text)
+        _write_text_or_die(Path(output), text)
 
 
 if __name__ == "__main__":

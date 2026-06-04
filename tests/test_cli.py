@@ -370,3 +370,125 @@ def test_agent_updates_state_phase(runner, tmp_path: Path, agent_name, expected_
     assert res.exit_code == 0, res.stderr
     state = ProblemState.model_validate_json(out_path.read_text())
     assert state.phase == expected_phase
+
+
+# ---------- friendly CLI error handling ------------------------------------
+
+
+from problemform.core.language_models import (
+    TruncatedResponseError,
+    make_provider as _real_make_provider,
+)
+
+
+def test_load_state_surfaces_parse_error_as_friendly(runner, tmp_path: Path):
+    bad = tmp_path / "bad.json"
+    bad.write_text("not json {{{")
+    res = runner.invoke(app, ["synthesize", "--state", str(bad)])
+    assert res.exit_code == 2
+    assert "failed to parse state JSON" in res.stderr
+    assert "Traceback" not in res.stderr
+
+
+def test_unknown_provider_surfaces_friendly_error(runner, monkeypatch):
+    # bypass the autouse stub so the real make_provider runs
+    monkeypatch.setattr(cli_module, "make_provider", _real_make_provider)
+    res = runner.invoke(app, ["analyze", "q", "--provider", "cohere"])
+    assert res.exit_code == 2
+    assert "provider error" in res.stderr
+    assert "Unknown provider" in res.stderr
+    assert "Traceback" not in res.stderr
+
+
+def test_missing_sdk_surfaces_friendly_error(runner, monkeypatch):
+    def fake_make_provider(*a, **kw):
+        raise ImportError(
+            "OpenAIProvider requires the 'openai' package. "
+            "Install it with `pip install problemform[openai]`."
+        )
+
+    monkeypatch.setattr(cli_module, "make_provider", fake_make_provider)
+    res = runner.invoke(app, ["analyze", "q"])
+    assert res.exit_code == 2
+    assert "openai" in res.stderr.lower()
+    assert "pip" in res.stderr
+    assert "Traceback" not in res.stderr
+
+
+def test_structured_output_error_surfaces_as_friendly(runner, monkeypatch, stub_llm):
+    # Force the next structured call to raise a provider-specific subclass.
+    original = stub_llm.generate_structured
+
+    def boom(prompt, output_model, **kw):
+        raise TruncatedResponseError("response was truncated mid-output")
+
+    monkeypatch.setattr(stub_llm, "generate_structured", boom)
+    res = runner.invoke(app, ["run", "q"])
+    assert res.exit_code == 2
+    assert "LLM provider error" in res.stderr
+    assert "truncated" in res.stderr
+    assert "Traceback" not in res.stderr
+    # restore for any later assertions (defensive)
+    monkeypatch.setattr(stub_llm, "generate_structured", original)
+
+
+def test_unexpected_programmer_error_is_not_swallowed(runner, monkeypatch, stub_llm):
+    """Guard against future blanket-except regressions.
+
+    The CLI must not translate generic programmer errors into clean _die exits.
+    If a contributor later adds `except Exception:` in a handler, this test fails.
+    """
+    def boom(prompt, output_model, **kw):
+        raise AttributeError("not a user-facing error")
+
+    monkeypatch.setattr(stub_llm, "generate_structured", boom)
+    res = runner.invoke(app, ["run", "q"])
+    # The runner captures the unhandled exception. We don't care about exit code
+    # (Typer may surface it as 1 with a traceback) — we care that the original
+    # exception object reaches us.
+    assert res.exception is not None
+    assert isinstance(res.exception, AttributeError)
+
+
+# ---------- friendly file-I/O error handling -------------------------------
+
+
+def test_load_state_surfaces_missing_file_as_friendly(runner, tmp_path: Path):
+    missing = tmp_path / "does-not-exist.json"
+    res = runner.invoke(app, ["explain", str(missing)])
+    assert res.exit_code != 0
+    # Typer's `exists=True` on `explain` would catch this for the explain command's
+    # positional argument — but `explain` doesn't use exists=True. Either way the
+    # message should be friendly.
+    combined = (res.stderr or "") + (res.output or "")
+    assert "could not read state file" in combined or "does not exist" in combined.lower()
+    assert "Traceback" not in combined
+
+
+def test_save_to_unwritable_path_surfaces_friendly_error(runner, tmp_path: Path):
+    bad = tmp_path / "no" / "such" / "dir" / "x.json"
+    res = runner.invoke(app, ["analyze", "q", "--save", str(bad)])
+    assert res.exit_code == 2
+    assert "could not write file" in res.stderr
+    assert "x.json" in res.stderr     # rich may hard-wrap the full path; basename survives
+    assert "Traceback" not in res.stderr
+
+
+def test_checkpoint_to_unwritable_path_surfaces_friendly_error(runner, tmp_path: Path):
+    bad = tmp_path / "no" / "such" / "dir" / "cp.json"
+    res = runner.invoke(app, ["analyze", "q", "--checkpoint", str(bad)])
+    assert res.exit_code == 2
+    assert "could not write file" in res.stderr
+    assert "Traceback" not in res.stderr
+
+
+def test_export_output_to_unwritable_path_surfaces_friendly_error(runner, tmp_path: Path):
+    state_path = tmp_path / "s.json"
+    assert runner.invoke(app, ["run", "q", "--save", str(state_path)]).exit_code == 0
+    bad = tmp_path / "no" / "such" / "dir" / "out.json"
+    res = runner.invoke(
+        app, ["export", str(state_path), "--format", "json", "-o", str(bad)]
+    )
+    assert res.exit_code == 2
+    assert "could not write file" in res.stderr
+    assert "Traceback" not in res.stderr
