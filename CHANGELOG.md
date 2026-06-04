@@ -5,31 +5,32 @@ All notable changes to this project will be documented in this file.
 ## [v0.1.0] - MVP
 
 ### Added
-- Complete multi-agent ProblemForm workflow
+- Multi-agent ProblemForm workflow
 - Structured ProblemState implementation
 - OpenAI provider support
 - Anthropic provider support
-- CLI commands:
-  - analyze
-  - assess
-  - refine
-  - run
-  - explain
-  - export
-  - agent
 - Workflow checkpointing and persistence
 - Prompt synthesis engine
 - Prompt history tracking
 - Provider abstraction layer
+- Agent-level CLI execution
 - Workflow and CLI test suites
 
 ### Changed
-- Redesigned convergence evaluation around prompt-delta materiality rather than refinement opportunities
-- Reduced synthesis context size to significantly lower token usage and latency
-- Improved CLI rendering of convergence results
+- Redesigned convergence evaluation around prompt-delta materiality
+- Reduced synthesis context size to lower token usage and latency
 
 ### Notes
-This is the first usable end-to-end release of ProblemForm.
+First working end-to-end implementation of the ProblemForm architecture.
+
+The MVP demonstrates:
+- Multi-agent prompt refinement
+- Iterative synthesis
+- State persistence
+- Convergence detection
+- Provider abstraction
+
+Future releases will focus on evaluation frameworks, benchmarking, workflow customization, and LangGraph integration.
 
 ---
 
