@@ -32,6 +32,7 @@ from problemform.core.workflow import run as pf_run
 from problemform.eval.judges import judge_answers
 from problemform.eval.models import (
     AggregateMetrics,
+    AggregateRuntime,
     BenchmarkReport,
     TestCase,
     TestCaseResult,
@@ -196,6 +197,26 @@ def _run_one_case(
     )
 
 
+def _aggregate_runtime(results: list[TestCaseResult]) -> AggregateRuntime:
+    """Sum per-case ``timing`` into role-level totals.
+
+    Errored cases contribute whatever partial timing they captured. Missing keys
+    fall through to ``0.0`` via ``dict.get``.
+    """
+    pf = sum(r.timing.get("pf_run", 0.0) for r in results)
+    answer = sum(
+        r.timing.get("raw_answer", 0.0) + r.timing.get("refined_answer", 0.0)
+        for r in results
+    )
+    judge = sum(r.timing.get("judge", 0.0) for r in results)
+    return AggregateRuntime(
+        total_seconds=pf + answer + judge,
+        pf_seconds=pf,
+        answer_seconds=answer,
+        judge_seconds=judge,
+    )
+
+
 def _aggregate(results: list[TestCaseResult]) -> AggregateMetrics:
     n_cases = len(results)
     completed = [r for r in results if r.comparative_judgment is not None and not r.errors]
@@ -298,4 +319,5 @@ def run_benchmark(
         bias_warnings=bias_warnings or [],
         test_case_results=results,
         aggregate=_aggregate(results),
+        aggregate_runtime=_aggregate_runtime(results),
     )

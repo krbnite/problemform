@@ -246,6 +246,35 @@ def test_detect_same_family_returns_none_when_cross_provider():
     assert _detect_same_family("openai", "gpt-5.4", "anthropic", "claude-sonnet-4-6") is None
 
 
+def test_aggregate_runtime_sums_by_role_including_partial_timing():
+    """`_aggregate_runtime` maps timing keys to roles correctly and tolerates
+    cases that captured only partial timing (errored mid-pipeline)."""
+    from problemform.eval.engine import _aggregate_runtime
+    from problemform.eval.models import TestCaseResult
+
+    def mk(timing: dict[str, float], name: str = "c", errors=None) -> TestCaseResult:
+        return TestCaseResult(
+            test_case=_case(name),
+            raw_prompt="q", refined_prompt="q+",
+            raw_answer="", refined_answer="",
+            comparative_judgment=None,
+            errors=errors or [],
+            timing=timing,
+        )
+
+    results = [
+        # Full case: pf=10, raw=1, refined=2, judge=3.
+        mk({"pf_run": 10.0, "raw_answer": 1.0, "refined_answer": 2.0, "judge": 3.0}, "ok"),
+        # Errored after raw answer: pf=5, raw=0.5, no refined/judge.
+        mk({"pf_run": 5.0, "raw_answer": 0.5}, "errored", errors=["x"]),
+    ]
+    rt = _aggregate_runtime(results)
+    assert rt.pf_seconds == pytest.approx(15.0)         # 10 + 5
+    assert rt.answer_seconds == pytest.approx(3.5)       # (1 + 2) + 0.5
+    assert rt.judge_seconds == pytest.approx(3.0)        # 3 + 0
+    assert rt.total_seconds == pytest.approx(21.5)
+
+
 def test_on_progress_emits_expected_event_sequence(tmp_path: Path):
     events = []
     run_benchmark(

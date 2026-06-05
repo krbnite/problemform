@@ -120,3 +120,33 @@ def test_benchmark_report_round_trips():
     )
     again = BenchmarkReport.model_validate_json(report.model_dump_json())
     assert again == report
+
+
+def test_benchmark_report_round_trips_aggregate_runtime():
+    """``aggregate_runtime`` round-trips through JSON and defaults to all zeros."""
+    from problemform.eval.models import AggregateRuntime
+
+    now = datetime(2026, 6, 5, 9, 0, 0)
+    report = BenchmarkReport(
+        run_id="2026-06-05T09-00-00_deadbe",
+        started_at=now,
+        finished_at=now,
+        config={},
+        aggregate=AggregateMetrics(
+            n_cases=2, n_completed=2, n_errored=0,
+            n_refined_wins=1, n_raw_wins=1, n_ties=0,
+            refined_win_rate=0.5, raw_win_rate=0.5, tie_rate=0.0,
+            material_improvement_rate=0.5, degradation_rate=0.0,
+        ),
+        aggregate_runtime=AggregateRuntime(
+            total_seconds=42.5, pf_seconds=30.0, answer_seconds=8.5, judge_seconds=4.0,
+        ),
+    )
+    again = BenchmarkReport.model_validate_json(report.model_dump_json())
+    assert again.aggregate_runtime == report.aggregate_runtime
+
+    # Older payloads without aggregate_runtime should deserialize cleanly.
+    payload = report.model_dump()
+    del payload["aggregate_runtime"]
+    legacy = BenchmarkReport.model_validate(payload)
+    assert legacy.aggregate_runtime == AggregateRuntime()  # all zeros

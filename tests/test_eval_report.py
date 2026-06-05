@@ -152,3 +152,43 @@ def test_report_json_round_trips_with_inline_answer_text(tmp_path: Path):
     # Inline answer text is present in the report's case results.
     assert again.test_case_results[0].raw_answer == "RAW_TEXT_INLINE"
     assert again.test_case_results[0].refined_answer == "REFINED_TEXT_INLINE"
+
+
+def test_runtime_section_present_with_per_role_totals():
+    """`render_markdown` includes a `## Runtime` section with the per-role
+    breakdown and a Total row formatted via `format_seconds`."""
+    from problemform.eval.models import AggregateRuntime
+    from problemform.eval.report import format_seconds
+
+    agg = AggregateMetrics(
+        n_cases=1, n_completed=1, n_errored=0,
+        n_refined_wins=1, n_raw_wins=0, n_ties=0,
+        refined_win_rate=1.0, raw_win_rate=0.0, tie_rate=0.0,
+        material_improvement_rate=1.0, degradation_rate=0.0,
+    )
+    report = _report([_result("c1", "philosophy", judgment=_judgment())], agg)
+    report = report.model_copy(update={
+        "aggregate_runtime": AggregateRuntime(
+            total_seconds=552.0,   # 9m 12s
+            pf_seconds=552.0 - 167.0 - 159.0,
+            answer_seconds=167.0,
+            judge_seconds=159.0,
+        ),
+    })
+    md = render_markdown(report)
+    assert "## Runtime" in md
+    assert "ProblemForm refinement" in md
+    assert "Answer generation" in md
+    assert "Comparative judge" in md
+    assert format_seconds(552.0) in md  # total row uses format_seconds
+    # Runtime section appears before the per-case results table.
+    assert md.index("## Runtime") < md.index("## Per-case results")
+
+
+def test_format_seconds_formats_under_and_over_one_minute():
+    from problemform.eval.report import format_seconds
+
+    assert format_seconds(0.0) == "0.0s"
+    assert format_seconds(42.7) == "42.7s"
+    assert format_seconds(60.0) == "1m 00s"
+    assert format_seconds(552.0) == "9m 12s"

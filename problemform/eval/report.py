@@ -24,6 +24,18 @@ def _fmt_pct(rate: float | None) -> str:
     return f"{rate * 100:.0f}%" if rate is not None else "n/a"
 
 
+def format_seconds(s: float) -> str:
+    """Render a wall-clock duration as ``Xm YYs`` (≥60s) or ``Y.Ys`` (<60s).
+
+    Shared by the CLI's per-case timing table, the CLI's run-level headline,
+    and the ``## Runtime`` section in :func:`render_markdown`.
+    """
+    if s >= 60:
+        m, sec = divmod(int(round(s)), 60)
+        return f"{m}m {sec:02d}s"
+    return f"{s:.1f}s"
+
+
 def _headline(report: BenchmarkReport) -> str:
     agg = report.aggregate
     lines = [
@@ -68,6 +80,21 @@ def _config_block(report: BenchmarkReport) -> str:
         for w in report.bias_warnings:
             lines.append(f"- {w}")
     return "\n".join(lines)
+
+
+def _runtime_section(report: BenchmarkReport) -> str:
+    """Render per-role wall-clock totals for the benchmark run."""
+    rt = report.aggregate_runtime
+    return "\n".join([
+        "## Runtime",
+        "",
+        "| Role | Total |",
+        "|---|---|",
+        f"| ProblemForm refinement | {format_seconds(rt.pf_seconds)} |",
+        f"| Answer generation | {format_seconds(rt.answer_seconds)} |",
+        f"| Comparative judge | {format_seconds(rt.judge_seconds)} |",
+        f"| **Total** | **{format_seconds(rt.total_seconds)}** |",
+    ])
 
 
 def _per_case_table(report: BenchmarkReport) -> str:
@@ -143,6 +170,7 @@ def render_markdown(report: BenchmarkReport) -> str:
     return "\n\n".join([
         _headline(report),
         _config_block(report),
+        _runtime_section(report),
         _per_case_table(report),
         _diagnostic_section(report),
         _errors_section(report),

@@ -11,59 +11,49 @@ Conventions:
 
 ---
 
-## Benchmark Progress & Runtime Visibility
+## Benchmark Runtime Aggregation by Role (issue #4)
 
 ### Problem
 
-Benchmark runs can take many minutes and incur non-trivial API costs, but currently provide almost no runtime visibility. Users see only a start message and then wait for final results.
+The benchmark already collects per-case timing in `TestCaseResult.timing` (with the four keys `pf_run`, `raw_answer`, `refined_answer`, `judge`), but does not aggregate that data into per-role totals or surface it at the run level. The operational question "where is runtime being spent?" is unanswerable from `report.md` or `report.json` today.
 
 ### Discussion
 
-The first real benchmark run exposed a usability problem: it is difficult to distinguish a healthy long-running benchmark from a hung process.
+Role → timing-key mapping is unambiguous: PF ← `pf_run`; Answer ← `raw_answer` + `refined_answer`; Judge ← `judge`. The patch is narrowly scoped to aggregation + reporting; no provider changes, no token counts, no pricing assumptions. Errored cases contribute their partial timing — time spent is a measurement signal even when the case ultimately errored.
 
-Potential improvements:
-
-- Progress bar (N of M cases completed)
-- Current case name
-- Elapsed runtime
-- Per-case timing breakdown
-- Optional token/cost estimates
-- Rich live status updates
-
-The value is operational rather than analytical. Better visibility reduces uncertainty during long benchmark runs and makes future benchmarking work easier.
-
-Recommended direction: implement before substantial corpus expansion or large-scale benchmarking. Visibility will become more important as evaluation suites grow.
+Recommended direction: add `AggregateRuntime` Pydantic model, persist `aggregate_runtime` on `BenchmarkReport`, render a `## Runtime` section in `report.md`, and print a one-line role-level headline in the CLI before the per-case timing table.
 
 ---
 
-## Benchmark Cost, Runtime, and Model Ablation Studies
+## Benchmark Token/Cost Accounting (issue #10)
 
 ### Problem
 
-The first benchmark run (~5 cases) consumed approximately 15 minutes and roughly $1 of API usage when using GPT-5.4 for all roles. The project currently has little visibility into the tradeoff between model quality, runtime, and evaluation stability.
+The benchmark framework has no visibility into per-call token usage or per-run cost. The "~$1 for a 5-case run" figure is a manual estimate; nothing in `report.json` or `report.md` records actual tokens or dollars. This blocks any informed conversation about model-tier tradeoffs across the three roles (PF / Answer / Judge).
 
 ### Discussion
 
-The evaluation framework introduces three independent model roles:
+The natural pattern mirrors the `on_progress` callback added for issue #3: add an opt-in `on_usage` callback at the provider constructor level, invoked after each successful API call with a structured `UsageEvent`. OpenAI's `response.usage` and Anthropic's `message.usage` both surface input/output token counts reliably on non-streaming calls; we extract from there.
 
-- ProblemForm
-- Answer Generator
-- Comparative Judge
+Dollar cost is derived from a small built-in `MODEL_PRICING` dict (snapshot-dated, with explicit caveat docstring). Unknown models report `cost_usd = None` — explicit "I don't know" rather than guessing on stale prices.
 
-These roles may not require identical model capability.
+Recommended direction: land issue #4 first so the runtime numbers stabilize, then add the provider callbacks + pricing in a focused follow-up. The `## Runtime` section may evolve into `## Cost & runtime`.
 
-Potential experiments:
+---
 
-- Hold Judge constant while reducing Answer model size.
-- Hold Answer constant while reducing Judge size.
-- Reduce ProblemForm model size.
-- Evaluate mixed-family configurations.
+## Manual Model Ablation Study and Findings Report (issue #11)
 
-The goal is to identify a "sweet spot" where benchmark outcomes remain stable while cost and latency decrease substantially.
+### Problem
 
-Future tooling may include benchmark sweeps or matrix experiments.
+The three eval roles almost certainly don't all need the same model capability, but the project has no empirical basis for the role-tier tradeoff. Which roles can be downshifted to a cheaper / faster model without meaningfully degrading benchmark outcomes is currently unknown.
 
-Recommended direction: gather baseline data before implementing automation.
+### Discussion
+
+A six-row matrix covers the interesting axes: `baseline` (HIGH/HIGH/HIGH), `cheap_answer`, `cheap_judge`, `cheap_pf`, `cross_family_judge`, `cheap_everything`. Tier names are parametric; the user picks specific model IDs that their accounts support and that the pricing table covers.
+
+Six configurations × five cases each = 30 case runs; estimated total cost in the low single dollars. Results land under `.problemform/ablation/<run_name>/` (gitignored). Findings document lives at `docs/reports/ablation_<YYYY-MM-DD>.md` with sections: setup, results table, sweet-spot identification, caveats, follow-ups.
+
+Recommended direction: gate execution on both issue #4 (runtime aggregation) and the token/cost accounting issue (#10) landing first, so the findings table can include both runtime and cost data without manual stitching. No sweep automation — the matrix is small enough to run by hand.
 
 ---
 
@@ -271,4 +261,4 @@ Recommended direction: keep prompt-delta as the always-on, primary convergence s
 
 ## Resolved
 
-_None yet._
+- **Benchmark Progress & Runtime Visibility** — implemented in commit `eb894c4` ("Add benchmark progress visibility"); GitHub issue [#3](https://github.com/krbnite/problemform/issues/3) closed. `benchmark` now renders a live Rich progress bar (M/N cases, current case + step, elapsed, ETA), prints per-step breadcrumb lines and case-completion lines for scrollback durability, and emits a per-case timing breakdown table on completion. All progress output goes to stderr; stdout remains usable for `--format json` piping.

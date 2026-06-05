@@ -86,6 +86,21 @@ class AggregateMetrics(BaseModel):
     degradation_rate: float | None
 
 
+class AggregateRuntime(BaseModel):
+    """Per-role wall-clock totals across all benchmark cases.
+
+    Built by summing each contributing key from per-case ``TestCaseResult.timing``:
+    PF ← ``pf_run``; Answer ← ``raw_answer`` + ``refined_answer``; Judge ← ``judge``.
+    Errored cases contribute whatever partial timing they captured — time spent
+    is a measurement signal even when the case ultimately errored.
+    """
+
+    total_seconds: float = 0.0
+    pf_seconds: float = 0.0
+    answer_seconds: float = 0.0
+    judge_seconds: float = 0.0
+
+
 class BenchmarkReport(BaseModel):
     run_id: str
     started_at: datetime
@@ -94,4 +109,5 @@ class BenchmarkReport(BaseModel):
     bias_warnings: list[str] = Field(default_factory=list)
     test_case_results: list[TestCaseResult] = Field(default_factory=list)
     aggregate: AggregateMetrics
+    aggregate_runtime: AggregateRuntime = Field(default_factory=AggregateRuntime)
     schema_version: int = 1

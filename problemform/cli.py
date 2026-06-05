@@ -412,12 +412,7 @@ def benchmark(
     from rich.table import Table
 
     from problemform.eval.engine import ProgressEvent
-
-    def _fmt_seconds(s: float) -> str:
-        if s >= 60:
-            m, sec = divmod(int(round(s)), 60)
-            return f"{m}m {sec:02d}s"
-        return f"{s:.1f}s"
+    from problemform.eval.report import format_seconds as _fmt_seconds
 
     progress = Progress(
         SpinnerColumn(),
@@ -484,6 +479,15 @@ def benchmark(
             bias_warnings=bias_warnings,
             on_progress=on_progress,
         )
+
+    # Run-level role breakdown headline (stderr).
+    rt = report.aggregate_runtime
+    err.print(
+        f"[bold]Run total:[/bold] {_fmt_seconds(rt.total_seconds)} "
+        f"(PF {_fmt_seconds(rt.pf_seconds)}, "
+        f"Answer {_fmt_seconds(rt.answer_seconds)}, "
+        f"Judge {_fmt_seconds(rt.judge_seconds)})"
+    )
 
     # Per-case timing breakdown (stderr; report contents unchanged).
     timing_table = Table(title="Per-case timing", show_lines=False)
