@@ -2,9 +2,73 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.0] — M3 Phase A: Evaluation Framework
 
-## [0.1.1] - Post-MVP Hardening 
+### Added
+- New `problemform benchmark` CLI command.
+- New `problemform.eval` package.
+- YAML benchmark corpus loader.
+- Comparative answer-judging framework.
+- Three-role evaluation architecture (ProblemForm / Answer / Judge).
+- Position-randomized answer comparison.
+- Materiality classification (`material`, `minor`, `stylistic_only`, `degradation`).
+- JSON and Markdown benchmark reports.
+- Starter benchmark corpus with five test cases.
+- Control case (`what_causes_eclipses`) to reduce benchmark-selection bias.
+- Design reference document for the evaluation framework.
 
+### Changed
+- Added PyYAML as a runtime dependency.
+- Updated README with benchmark framework documentation.
+- Added benchmark documentation to CLI docs.
+
+### Reliability
+- Failure containment during benchmark execution.
+- Same-family judge bias warnings.
+- Benchmark runs stored under `.problemform/eval_runs/`.
+
+---
+
+## [v0.1.2] — Reliability & Error Handling Improvements
+### Added
+- Structured provider error hierarchy:
+  - StructuredOutputError
+  - TruncatedResponseError
+  - RefusalError
+  - EmptyResponseError
+  - ContentFilterError
+- Friendly CLI handling for provider initialization failures.
+- Friendly CLI handling for structured-output failures.
+- Friendly CLI handling for file I/O and state-loading errors.
+- Security documentation and deployment notes.
+- Additional package metadata and project polish.
+
+### Changed
+- Hardened OpenAI and Anthropic provider response handling.
+- Improved validation of structured LLM responses.
+- Improved CLI error reporting and user-facing diagnostics.
+- Improved state-file parsing and validation.
+- Improved save, export, and checkpoint failure handling.
+- Improved agent phase tracking and workflow diagnostics.
+- Refined packaging configuration and distribution metadata.
+
+### Documentation
+- Expanded security and project documentation.
+- Updated release and changelog documentation.
+
+### Testing
+- Added extensive CLI reliability tests covering:
+  - malformed state files
+  - unknown providers
+  - missing SDKs
+  - structured-output failures
+  - file read/write failures
+  - checkpoint failures
+- Expanded provider and validation-path test coverage.
+
+---
+
+## [v0.1.1] - Post-MVP Hardening 
 ### Added
 - Provider response hardening for OpenAI and Anthropic.
 - More comprehensive provider failure-mode tests.
