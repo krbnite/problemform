@@ -1,0 +1,305 @@
+# ProblemForm
+
+**ProblemForm is a human–AI collaborative system for refining questions, prompts, and problem statements. Its goal is not to answer the user's question — it is to produce the highest-quality formulation of the question itself.**
+
+A well-formed question is often more valuable than a confident answer to the wrong one. ProblemForm makes the act of formulation explicit and inspectable: a structured pipeline drives an LLM through objective analysis, assumption excavation, gap detection, expert perspectives, alternative framings, and meta-questions, then synthesizes a refined prompt and judges whether further refinement would change anything material.
+
+The authoritative description of the methodology lives in [`docs/problemform_constitution.md`](docs/problemform_constitution.md). The architectural overview is in [`docs/architecture.md`](docs/architecture.md).
+
+---
+
+## Why this exists
+
+LLM output quality is bounded by prompt quality. Most prompts are written once, off the cuff, and never inspected. ProblemForm treats prompt formulation as a workflow with phases, artifacts, and a convergence criterion — so the formulation itself becomes something you can read, version, evaluate, and improve.
+
+The goal is not "ask the AI longer." It is to make the structure of the question visible.
+
+---
+
+## Key concepts
+
+- **`ProblemState`** — a single immutable Pydantic record that flows through the pipeline. Each phase returns a new `ProblemState` via `model_copy(update=…)`; nothing is mutated in place.
+- **Eight phases** form the pipeline:
+  1. **Objective Analysis** — separates the user's stated objective from the inferred one.
+  2. **Assumption Excavation** — surfaces explicit, implicit, and questionable assumptions.
+  3. **Information-Gap Detection** — names what's missing and how it should be acquired.
+  4. **Expert Panel Generation** — drafts follow-up questions from the perspectives most likely to matter.
+  5. **Alternative Framing** — reframes the problem to expose blind spots in the original framing.
+  6. **Meta-Question Generation** — asks questions about the question itself.
+  7. **Prompt Refinement** — synthesizes a new prompt from a compact projection of the state.
+  8. **Convergence Evaluation** — compares the latest prompt against the previous one and decides whether further refinement would change the answer.
+- **Prompt-delta-primary convergence.** The judge's verdict is driven by whether a competent answerer would respond meaningfully differently to the two prompt versions. Remaining "things we could still explore" are tracked but informational only.
+- **`LLMProvider` protocol.** OpenAI and Anthropic are both supported through a single `generate_text` / `generate_structured` interface. SDKs are imported lazily, so installing only one provider does not break the other.
+
+---
+
+## Current capabilities
+
+- End-to-end Python pipeline runnable from a single function (`problemform.core.workflow.run`) or from the CLI.
+- Both OpenAI (via `responses.parse` structured output) and Anthropic (via JSON-with-Pydantic-validation) providers.
+- Eight CLI subcommands (`analyze`, `synthesize`, `judge`, `run`, `agent`, `explain`, `export`, `benchmark`).
+- Per-phase de-duplication and caps on accumulated artifacts; a compact synthesis context that keeps prompt-refinement input small.
+- Friendly CLI errors for provider misconfiguration, structured-output failures, and file I/O.
+- A built-in **evaluation framework** for measuring whether ProblemForm actually improves the answers a downstream model produces (see below).
+
+---
+
+## Evaluation framework
+
+ProblemForm includes a benchmark harness that measures its own effect. This is deliberate: The value of a problem-formulation system can't be assumed--it has to be measured. The current benchmark framework compares answers produced from raw and refined prompts and uses an independent judge model to evaluate whether the refinement materially improved the result. The evaluation framework is intentionally lightweight and should be viewed as an early measurement system rather than a definitive assessment of answer quality.
+
+The harness compares the answer an LLM produces when given the **raw question** against the answer it produces when given the **refined prompt**, and asks a third LLM which is better.
+
+**Three provider roles**, configurable independently:
+
+- **ProblemForm provider** — runs the refinement pipeline.
+- **Answer provider** — generates the two answers (raw and refined).
+- **Judge provider** — performs the comparative judgment. Using a different provider family for the judge is recommended; using the same family triggers a self-preference warning but is not blocked.
+
+**Bias mitigation built in.** Comparative judgments are position-randomized — the judge sees opaque "A/B" labels, and the engine de-anonymizes which side was actually the refined one. The judge prompt does not contain the labels "raw" or "refined."
+
+**Three-way reporting.** Headlines show the *refined-win rate*, the *raw-win rate*, and the *tie rate* side by side, plus a *material-improvement rate* and an explicit *degradation rate*. A high refined-win rate cannot be celebrated without also acknowledging the corresponding regressions.
+
+**Failure containment.** A single failed case (judge error, refusal, network blip) is captured into that case's `errors[]` and the run continues. Aggregate rates are computed over completed cases, not attempted ones.
+
+**Control cases.** The shipped corpus includes a well-formed factual question (`what_causes_eclipses`) where ProblemForm may not help — or may hurt. This is a structural guard against the benchmark drifting into an advocacy artifact.
+
+Run the default suite against an OpenAI ProblemForm + Answer model and an Anthropic judge:
+
+```bash
+problemform benchmark benchmarks/default \
+    --pf-provider openai \
+    --answer-provider openai \
+    --judge-provider anthropic
+```
+
+Outputs land under `.problemform/eval_runs/<run-id>/`:
+
+```
+report.json
+report.md
+cases/<case-name>/problem_state.json
+cases/<case-name>/raw_answer.txt
+cases/<case-name>/refined_answer.txt
+```
+
+Full design rationale: [`docs/designs/milestone_03_evaluation_framework.md`](docs/designs/milestone_03_evaluation_framework.md). Corpus layout: [`benchmarks/README.md`](benchmarks/README.md).
+
+---
+
+## Installation
+
+Requires Python ≥ 3.11. A conda environment is recommended; see [`docs/environment.md`](docs/environment.md).
+
+ProblemForm uses optional extras so you install only the LLM SDKs you actually need:
+
+```bash
+pip install -e .[dev]         # runtime deps + both SDKs + pytest
+pip install -e .[all]         # runtime deps + both SDKs
+pip install -e .[openai]      # runtime deps + just OpenAI
+pip install -e .[anthropic]   # runtime deps + just Anthropic
+```
+
+The runtime dependencies (`pydantic`, `typer`, `rich`, `python-dotenv`, `PyYAML`) are always installed. The OpenAI and Anthropic SDKs are imported lazily inside their providers, so installing only one provider's SDK does not break import of the other.
+
+---
+
+## Configuration
+
+API keys are loaded from a `.env` file at the repo root:
+
+```
+OPENAI_API_KEY=sk-…
+ANTHROPIC_API_KEY=sk-ant-…
+```
+
+Defaults can be set via environment variables:
+
+| Variable | Effect |
+|---|---|
+| `PROBLEMFORM_PROVIDER` | Default provider name (`openai` or `anthropic`). |
+| `PROBLEMFORM_MODEL` | Default model ID. |
+
+The provider name and model can always be overridden per command with `--provider` / `--model` (or the role-specific flags on `benchmark`).
+
+> **Note on default model IDs.** The provider defaults in source (`gpt-5.4`, `claude-sonnet-4-6`) are forward-looking. If your installed SDK doesn't recognize them, pass `--model` explicitly or set `PROBLEMFORM_MODEL`.
+
+---
+
+## CLI usage
+
+| Command | Purpose |
+|---|---|
+| `analyze` | Run the six analytical phases only; no synthesis, no convergence judgment. |
+| `synthesize` | Generate a refined prompt from an existing `ProblemState`. |
+| `judge` | Run convergence evaluation against an existing `ProblemState`. |
+| `run` | Loop the full pipeline (analysis → synthesis → judgment) until `CONVERGED` or `--max-iterations`. |
+| `agent` | Run a single named phase against an existing `ProblemState`. Useful for debugging individual steps. |
+| `explain` | Pretty-print a `ProblemState` as Markdown. |
+| `export` | Persist a `ProblemState` as JSON or Markdown. |
+| `benchmark` | Run a YAML test-case suite end-to-end and write JSON + Markdown reports. |
+
+Authoritative semantics for every command: [`docs/cli_commands.md`](docs/cli_commands.md).
+
+---
+
+## Example workflows
+
+**Full refinement loop, one iteration (the default):**
+
+```bash
+problemform run "How should I prepare for my upcoming code review?"
+```
+
+**Inspect the analytical phases first, then synthesize separately:**
+
+```bash
+problemform analyze "Should I use REST or GraphQL for my new API?" \
+    --save state.json
+problemform synthesize --state state.json --save state.json
+problemform judge --state state.json --format md
+```
+
+**Re-run only one phase against a saved state:**
+
+```bash
+problemform agent meta-questions state.json --output state.json
+```
+
+**Benchmark the refinement on the shipped corpus, with a cross-family judge:**
+
+```bash
+problemform benchmark benchmarks/default \
+    --pf-provider openai \
+    --answer-provider openai \
+    --judge-provider anthropic
+```
+
+---
+
+## Repository structure
+
+```
+problemform/
+  models.py                  # Pydantic types: ProblemState, per-phase artifacts, result envelopes
+  config.py                  # .env loader
+  cli.py                     # Typer app (8 subcommands)
+  cli_render.py              # Markdown rendering of ProblemState
+  core/
+    state.py                 # initialize_state, transition_to_phase
+    workflow.py              # phase functions, pipeline tables, run_pipeline
+    language_models.py       # LLMProvider Protocol, OpenAI + Anthropic providers, error types
+  agents/                    # one PROMPT constant per phase
+  eval/
+    models.py                # TestCase, ComparativeJudgment, TestCaseResult, AggregateMetrics, BenchmarkReport
+    corpus.py                # YAML loader
+    judges.py                # position-randomized comparative answer judging
+    engine.py                # per-case pipeline, failure containment, aggregation
+    report.py                # JSON + Markdown reporting
+    prompts/                 # eval-only prompt constants
+benchmarks/
+  default/                   # shipped test suite (5 cases incl. control)
+docs/                        # constitution, architecture, CLI spec, design references
+tests/                       # pytest suite
+```
+
+---
+
+## Development & testing
+
+```bash
+pip install -e .[dev]
+pytest -q
+```
+
+The test suite covers the workflow (immutability, de-duplication, convergence cold-start, compact synthesis context), both LLM providers (success and failure modes including truncation, refusal, content-filter, empty response), the CLI surface (including friendly error handling), and the full evaluation framework (corpus loading, position randomization, per-case pipeline, failure containment, aggregation, and report rendering).
+
+Design references for non-obvious decisions live under [`docs/designs/`](docs/designs/).
+
+---
+
+## FAQ / design notes
+
+### Why does `max_iterations` default to 1?
+
+**TL;DR: Prompt quality ≠ refinement depth.**
+
+In testing, most of the improvement in prompt quality occurs during the first refinement pass. Additional iterations often continue generating valid assumptions, perspectives, framings, and meta-questions, but the marginal gains diminish rapidly — and sometimes go negative.
+
+Refinement quality often follows a curve like:
+
+```
+Quality
+  ^
+  |
+10|           _____
+  |         /
+  |       /
+  |     /
+  |   /
+  | /
+  +-------------------->
+      Iterations
+```
+
+…or worse — a peak followed by a decline:
+
+```
+Quality
+  ^
+10|        /\__
+  |      /     \__
+  |    /
+  |  /
+  |/
+  +-------------------->
+      Iterations
+```
+
+In practice we see something like:
+
+```
+Iteration 1 = transformation
+Iteration 2 = optimization
+Iteration 3+ = editorializing
+```
+
+Because problem formulation is inherently open-ended, the analytical phases can keep producing new artifacts indefinitely. More iterations therefore increase cost and latency while not necessarily producing proportionally better prompts. Excessive refinement can also push prompts toward being overly elaborate, academic, or procedural relative to the user's original objective.
+
+For this reason, ProblemForm defaults to `max_iterations=1`. Additional iterations are available when deeper exploration is desired, but should be treated as an advanced option, not the default workflow.
+
+---
+
+## Roadmap
+
+**Implemented:**
+
+- Pure-Python core: `ProblemState`, all eight phase handlers, both LLM providers, end-to-end pipeline.
+- CLI: eight subcommands covering the analytical phases, synthesis, judgment, full-loop execution, single-phase dispatch, inspection, and export.
+- Evaluation framework (Phase A): comparative answer judging, three-way reporting, position randomization, failure containment, YAML corpus loader, shipped starter suite with a control case.
+
+**Planned (capability-focused; specific technologies are tracked in [`docs/roadmap.md`](docs/roadmap.md)):**
+
+- Broader evaluation: rubric-based scoring, behavioral property checks, multi-judgment aggregation, dev/held-out splits, regression-test infrastructure.
+- Graph-based orchestration of the pipeline.
+- Interactive UI for non-CLI users.
+- Integration-protocol exposure for use inside other agent systems.
+- Reliability, security, and observability polish.
+
+---
+
+## Documentation
+
+- [`docs/problemform_constitution.md`](docs/problemform_constitution.md) — authoritative methodology spec.
+- [`docs/architecture.md`](docs/architecture.md) — workflow and agent-role overview.
+- [`docs/cli_commands.md`](docs/cli_commands.md) — per-command semantics.
+- [`docs/environment.md`](docs/environment.md) — installation and environment setup.
+- [`docs/glossary.md`](docs/glossary.md) — definitions of Information Gap, Expert Panel, Convergence, etc.
+- [`docs/designs/milestone_03_evaluation_framework.md`](docs/designs/milestone_03_evaluation_framework.md) — design reference for the evaluation framework.
+- [`benchmarks/README.md`](benchmarks/README.md) — benchmark corpus layout and conventions.
+
+---
+
+## License
+
+MIT. See [`LICENSE`](LICENSE).
