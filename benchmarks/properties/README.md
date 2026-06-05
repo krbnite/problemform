@@ -54,9 +54,13 @@ A `PropertyCheckResult` records:
 
 M3B-α property checks come from two sources:
 
-1. **Per-case `TestCase.expected_properties`** (existing field, activated in M3B-α.2). Each string is interpreted as a `target=artifact, expected=True` property check applied only to its case.
-2. **Shared suites under this directory**, applied across cases via the `--property-suite <path>` CLI flag (lands in M3B-α.2).
+1. **Per-case `TestCase.expected_properties`** (existing field). Each string would be interpreted as a `target=artifact, expected=True` property check applied only to its case. Activation (running these as live assertions) lands in **M3B-α.3 / α.4**, not α.2.
+2. **Shared suites under this directory**, applied across cases. The shipped seed suite is [`artifact_baseline_v1.yaml`](artifact_baseline_v1.yaml). The `--property-suite <path>` CLI flag that selects suites at run time also lands in α.4.
 
-Per-case formulation-target properties — i.e. a `formulation_properties` field on `TestCase` — are deferred to M3B-β corpus diversification. Until then, formulation-target assertions live in shared suites here.
+Per-case formulation-target properties — i.e. a `formulation_properties` field on `TestCase` — are deferred to M3B-β corpus diversification. Until then, formulation-target assertions belong in shared suites here.
 
-This directory is intentionally empty in M3B-α.1; the schema and loader land before the data.
+## Shipped in M3B-α.2
+
+- [`artifact_baseline_v1.yaml`](artifact_baseline_v1.yaml) — four baseline artifact-target binary assertions (`addresses_stated_request`, `no_unnecessary_refusal`, `no_obvious_unsupported_facts`, `respectful_tone`).
+
+This is **data only**. Property-check execution (running these against an artifact via an LLM judge) lands in **M3B-α.3** along with the rubric runner; engine integration, aggregation, reporting, and the `--property-suite` CLI flag land in **M3B-α.4**. Parse-only loader tests in [`tests/test_eval_corpus.py`](../../tests/test_eval_corpus.py) prove the YAML file validates against the schema today.

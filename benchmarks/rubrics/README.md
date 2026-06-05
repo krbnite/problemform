@@ -19,8 +19,8 @@ schema_version: 1
 notes: |
   Free-form rationale or authoring notes. Optional.
 criteria:
-  - name: central_claim
-    description: The formulation names a central claim, objective, or problem.
+  - name: central_claim_clarity
+    description: The formulation clearly states the central claim, objective, decision, or problem to be worked on.
     weight: 1.0                  # default 1.0
     scoring: graded_5            # "binary" | "graded_3" | "graded_5"; default graded_5
     rationale_required: true     # default true; judge must include a rationale
@@ -44,14 +44,14 @@ M3B-α ships **absolute mode only**: each rubric scores each subject (raw and re
 
 Comparative mode (head-to-head judging within a rubric) is deferred to M3B-β; the schema reserves the `mode` field so comparative rubrics can be added without a schema break.
 
-## Default rubrics (planned, not yet shipped)
+## Default rubrics (shipped in M3B-α.2)
 
-M3B-α.2 will ship two default rubrics here:
+Two default rubrics live here:
 
-- `formulation_quality_v1.yaml` — `target=formulation, mode=absolute`. Seed rubric for the formulation lens.
-- `answer_quality_v1.yaml` — `target=artifact, mode=absolute`. Per-criterion answer scoring parallel to M3A's comparative-answer judgment.
+- [`formulation_quality_v1.yaml`](formulation_quality_v1.yaml) — `target=formulation, mode=absolute`. Seed rubric for the formulation lens. Five criteria: `central_claim_clarity`, `assumption_surfacing`, `constraint_articulation`, `alternative_framing_coverage`, `meta_question_presence`.
+- [`answer_quality_v1.yaml`](answer_quality_v1.yaml) — `target=artifact, mode=absolute`. Per-criterion answer scoring parallel to M3A's comparative-answer judgment. Five criteria: `directness`, `factual_care`, `reasoning_quality`, `constraint_satisfaction`, `usefulness`.
 
-This directory is intentionally empty in M3B-α.1; the schema and loader land before the data.
+These are **definitions only**. Runner execution, judge prompting, engine integration, aggregation, report rendering, and the `--rubric` CLI flag all land in later α steps (α.3 for runner / prompt plumbing; α.4 for engine integration, aggregation, reporting, and CLI flags). Parse-only loader tests in [`tests/test_eval_corpus.py`](../../tests/test_eval_corpus.py) prove the YAML files validate against the schema today.
 
 ## Authoring guidance
 

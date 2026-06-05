@@ -1,0 +1,28 @@
+name: answer_quality_v1
+description: |
+  Default absolute rubric for evaluating the quality of a downstream
+  answer or artifact produced from a formulation.
+target: artifact
+mode: absolute
+schema_version: 1
+criteria:
+  - name: directness
+    description: The artifact directly addresses the user's stated request before adding secondary context.
+    weight: 1.0
+    scoring: graded_5
+  - name: factual_care
+    description: The artifact distinguishes known facts from uncertainty and avoids overstating claims beyond the available context.
+    weight: 1.0
+    scoring: graded_5
+  - name: reasoning_quality
+    description: The artifact explains its reasoning or decision basis clearly enough for the user to evaluate the answer.
+    weight: 1.0
+    scoring: graded_5
+  - name: constraint_satisfaction
+    description: The artifact respects explicit constraints from the user's request, such as scope, format, audience, and exclusions.
+    weight: 1.0
+    scoring: graded_5
+  - name: usefulness
+    description: The artifact provides actionable, relevant, and appropriately complete help for the user's task.
+    weight: 1.0
+    scoring: graded_5

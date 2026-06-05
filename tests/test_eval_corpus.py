@@ -242,3 +242,82 @@ def test_load_property_suite_rejects_missing_required_field(tmp_path: Path):
     )
     with pytest.raises(CorpusError):
         load_property_suite(f)
+
+
+# --- M3B-α.2: default rubrics and shared property suite parse-tests ---------
+
+
+DEFAULT_RUBRICS = Path(__file__).parent.parent / "benchmarks" / "rubrics"
+DEFAULT_PROPERTIES = Path(__file__).parent.parent / "benchmarks" / "properties"
+
+
+def test_default_rubrics_parse_from_directory():
+    rubrics = load_rubrics(DEFAULT_RUBRICS)
+    by_name = {r.name: r for r in rubrics}
+    assert "formulation_quality_v1" in by_name
+    assert "answer_quality_v1" in by_name
+
+    fq = by_name["formulation_quality_v1"]
+    aq = by_name["answer_quality_v1"]
+    assert fq.target == "formulation"
+    assert fq.mode == "absolute"
+    assert aq.target == "artifact"
+    assert aq.mode == "absolute"
+
+    # α.2 ships five criteria per default rubric, all graded_5 / weight 1.0.
+    for r in (fq, aq):
+        assert len(r.criteria) == 5
+        for c in r.criteria:
+            assert c.scoring == "graded_5"
+            assert c.weight == 1.0
+
+
+def test_default_rubrics_parse_from_file_paths():
+    fq = load_rubrics(DEFAULT_RUBRICS / "formulation_quality_v1.yaml")
+    aq = load_rubrics(DEFAULT_RUBRICS / "answer_quality_v1.yaml")
+    assert len(fq) == 1 and fq[0].name == "formulation_quality_v1"
+    assert len(aq) == 1 and aq[0].name == "answer_quality_v1"
+
+
+def test_default_formulation_rubric_uses_canonical_criteria():
+    [fq] = load_rubrics(DEFAULT_RUBRICS / "formulation_quality_v1.yaml")
+    assert [c.name for c in fq.criteria] == [
+        "central_claim_clarity",
+        "assumption_surfacing",
+        "constraint_articulation",
+        "alternative_framing_coverage",
+        "meta_question_presence",
+    ]
+
+
+def test_default_answer_rubric_uses_expected_criteria():
+    [aq] = load_rubrics(DEFAULT_RUBRICS / "answer_quality_v1.yaml")
+    assert [c.name for c in aq.criteria] == [
+        "directness",
+        "factual_care",
+        "reasoning_quality",
+        "constraint_satisfaction",
+        "usefulness",
+    ]
+
+
+def test_default_property_suite_parses_from_directory():
+    props = load_property_suite(DEFAULT_PROPERTIES)
+    names = {p.name for p in props}
+    assert {
+        "addresses_stated_request",
+        "no_unnecessary_refusal",
+        "no_obvious_unsupported_facts",
+        "respectful_tone",
+    } <= names
+    for p in props:
+        assert p.target == "artifact"
+        assert p.expected is True
+
+
+def test_default_property_suite_parses_from_file_path():
+    props = load_property_suite(DEFAULT_PROPERTIES / "artifact_baseline_v1.yaml")
+    assert len(props) == 4
+    for p in props:
+        assert p.target == "artifact"
+        assert p.expected is True

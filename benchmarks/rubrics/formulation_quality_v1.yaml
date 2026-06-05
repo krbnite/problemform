@@ -1,0 +1,33 @@
+name: formulation_quality_v1
+description: |
+  Default absolute rubric for evaluating formulation quality across
+  question-shaped and non-question-shaped inputs.
+target: formulation
+mode: absolute
+schema_version: 1
+notes: |
+  meta_question_presence is intended to apply beyond literal
+  question-shaped inputs; H2 validation should check whether the
+  name/description remain adequate for arguments, decision briefs,
+  and other non-question formulations.
+criteria:
+  - name: central_claim_clarity
+    description: The formulation clearly states the central claim, objective, decision, or problem to be worked on.
+    weight: 1.0
+    scoring: graded_5
+  - name: assumption_surfacing
+    description: The formulation makes load-bearing assumptions explicit enough that they can be inspected or revised.
+    weight: 1.0
+    scoring: graded_5
+  - name: constraint_articulation
+    description: The formulation identifies relevant constraints, success criteria, or boundaries for the work.
+    weight: 1.0
+    scoring: graded_5
+  - name: alternative_framing_coverage
+    description: The formulation surfaces plausible alternative ways to frame the problem without losing the user's intent.
+    weight: 1.0
+    scoring: graded_5
+  - name: meta_question_presence
+    description: The formulation identifies an appropriate higher-order frame, clarification need, uncertainty, or decision point that guides what should be clarified, tested, or answered next.
+    weight: 1.0
+    scoring: graded_5
