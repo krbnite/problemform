@@ -12,8 +12,6 @@ The authoritative description of the methodology lives in [`docs/problemform_con
 
 LLM output quality is bounded by prompt quality. Most prompts are written once, off the cuff, and never inspected. ProblemForm treats prompt formulation as a workflow with phases, artifacts, and a convergence criterion — so the formulation itself becomes something you can read, version, evaluate, and improve.
 
-The goal is not "ask the AI longer." It is to make the structure of the question visible.
-
 ---
 
 ## Key concepts
@@ -29,7 +27,7 @@ The goal is not "ask the AI longer." It is to make the structure of the question
   7. **Prompt Refinement** — synthesizes a new prompt from a compact projection of the state.
   8. **Convergence Evaluation** — compares the latest prompt against the previous one and decides whether further refinement would change the answer.
 - **Prompt-delta-primary convergence.** The judge's verdict is driven by whether a competent answerer would respond meaningfully differently to the two prompt versions. Remaining "things we could still explore" are tracked but informational only.
-- **`LLMProvider` protocol.** OpenAI and Anthropic are both supported through a single `generate_text` / `generate_structured` interface. SDKs are imported lazily, so installing only one provider does not break the other.
+- **`LLMProvider` protocol.** OpenAI and Anthropic are both supported through a single `generate_text` / `generate_structured` interface. SDKs are imported lazily, so it is not required to install models from each and every provider.
 
 ---
 
@@ -56,9 +54,18 @@ The harness compares the answer an LLM produces when given the **raw question** 
 - **Answer provider** — generates the two answers (raw and refined).
 - **Judge provider** — performs the comparative judgment. Using a different provider family for the judge is recommended; using the same family triggers a self-preference warning but is not blocked.
 
+Each role accepts its own `--*-provider` / `--*-model` flags on the `benchmark` command and has dedicated environment-variable defaults (`PROBLEMFORM_EVAL_ANSWER_PROVIDER` / `PROBLEMFORM_EVAL_ANSWER_MODEL`, `PROBLEMFORM_EVAL_JUDGE_PROVIDER` / `PROBLEMFORM_EVAL_JUDGE_MODEL`) so that a cross-family evaluation setup can be configured once in `.env` rather than passed on every invocation. The ProblemForm role uses the generic `PROBLEMFORM_PROVIDER` / `PROBLEMFORM_MODEL`. See the Configuration section for the full precedence rules.
+
 **Bias mitigation built in.** Comparative judgments are position-randomized — the judge sees opaque "A/B" labels, and the engine de-anonymizes which side was actually the refined one. The judge prompt does not contain the labels "raw" or "refined."
 
 **Three-way reporting.** Headlines show the *refined-win rate*, the *raw-win rate*, and the *tie rate* side by side, plus a *material-improvement rate* and an explicit *degradation rate*. A high refined-win rate cannot be celebrated without also acknowledging the corresponding regressions.
+
+**What the rates mean.** The judge attaches a four-level *materiality* to each verdict: `material` (meaningfully better in substance), `minor` (small but real improvement), `stylistic_only` (same substance, different presentation — used for ties), and `degradation` (the losing answer is substantively worse, not merely less polished — "would actively mislead or harm relative to the other," per the judge prompt). Two derived rates appear in the headline:
+
+- **Material-improvement rate** — fraction of completed cases where the refined-prompt answer won *and* the win was rated `material`. This is the clean "ProblemForm helped" signal.
+- **Degradation rate** — fraction of completed cases where the judge marked the verdict `degradation`. In practice this pairs with `winner_actual == "raw"`, i.e. the refined prompt produced an answer that is actively worse than the answer to the raw question. This is the regression signal.
+
+Both rates use `n_completed` (errored cases excluded) as the denominator.
 
 **Failure containment.** A single failed case (judge error, refusal, network blip) is captured into that case's `errors[]` and the run continues. Aggregate rates are computed over completed cases, not attempted ones.
 
@@ -117,8 +124,16 @@ Defaults can be set via environment variables:
 
 | Variable | Effect |
 |---|---|
-| `PROBLEMFORM_PROVIDER` | Default provider name (`openai` or `anthropic`). |
-| `PROBLEMFORM_MODEL` | Default model ID. |
+| `PROBLEMFORM_PROVIDER` | Default provider name (`openai` or `anthropic`). Used by all commands and as the fallback for every role in `benchmark`. |
+| `PROBLEMFORM_MODEL` | Default model ID. Used by all commands and as the fallback for every role in `benchmark`. |
+| `PROBLEMFORM_EVAL_ANSWER_PROVIDER` | Default provider name for the **Answer** role in `benchmark`. Overrides `PROBLEMFORM_PROVIDER` for this role only. |
+| `PROBLEMFORM_EVAL_ANSWER_MODEL` | Default model ID for the **Answer** role in `benchmark`. Overrides `PROBLEMFORM_MODEL` for this role only. |
+| `PROBLEMFORM_EVAL_JUDGE_PROVIDER` | Default provider name for the **Comparative Answer Judge** role in `benchmark`. Overrides `PROBLEMFORM_PROVIDER` for this role only. |
+| `PROBLEMFORM_EVAL_JUDGE_MODEL` | Default model ID for the **Comparative Answer Judge** role in `benchmark`. Overrides `PROBLEMFORM_MODEL` for this role only. |
+
+The `PROBLEMFORM_EVAL_*` variables are **scoped to the evaluation framework**. They do not affect the workflow's Convergence Judge (the `convergence_evaluation` phase in `run` and the standalone `problemform judge` command). The workflow uses one provider end-to-end via `PROBLEMFORM_PROVIDER` / `PROBLEMFORM_MODEL`.
+
+Resolution precedence for each role is: **CLI flag → role-specific env var → generic env var → built-in default.** The ProblemForm role in `benchmark` uses `PROBLEMFORM_PROVIDER` / `PROBLEMFORM_MODEL` directly (no separate `PROBLEMFORM_PF_*` variables); the role-specific variables exist for the Answer and Comparative Answer Judge roles, where cross-family configuration is the recommended setup.
 
 The provider name and model can always be overridden per command with `--provider` / `--model` (or the role-specific flags on `benchmark`).
 
@@ -296,6 +311,7 @@ For this reason, ProblemForm defaults to `max_iterations=1`. Additional iteratio
 - [`docs/environment.md`](docs/environment.md) — installation and environment setup.
 - [`docs/glossary.md`](docs/glossary.md) — definitions of Information Gap, Expert Panel, Convergence, etc.
 - [`docs/designs/milestone_03_evaluation_framework.md`](docs/designs/milestone_03_evaluation_framework.md) — design reference for the evaluation framework.
+- [`docs/backlog.md`](docs/backlog.md) — tracked ideas, design speculation, and not-yet-active work.
 - [`benchmarks/README.md`](benchmarks/README.md) — benchmark corpus layout and conventions.
 
 ---

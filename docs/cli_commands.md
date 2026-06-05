@@ -238,7 +238,17 @@ Three provider roles:
 - **Answer provider** — generates one answer from the raw question and one from the refined prompt.
 - **Judge provider** — performs a position-randomized comparative judgment between the two answers.
 
-Each role has its own `--*-provider` / `--*-model` flags. Unset flags fall through to the same defaults used by `problemform run` (`PROBLEMFORM_PROVIDER` / `PROBLEMFORM_MODEL` environment variables, then the built-in defaults).
+Each role has its own `--*-provider` / `--*-model` flags. Resolution precedence is:
+
+1. The role's CLI flag (e.g. `--answer-provider`).
+2. The role's environment variable, if defined:
+   - Answer role: `PROBLEMFORM_EVAL_ANSWER_PROVIDER`, `PROBLEMFORM_EVAL_ANSWER_MODEL`.
+   - Comparative Answer Judge role: `PROBLEMFORM_EVAL_JUDGE_PROVIDER`, `PROBLEMFORM_EVAL_JUDGE_MODEL`.
+   - ProblemForm role: no role-specific variables; it uses the generic ones directly.
+
+The `PROBLEMFORM_EVAL_*` variables are scoped to the evaluation framework. They do not affect the workflow's Convergence Judge (the `convergence_evaluation` phase in `run` or the standalone `judge` command).
+3. The generic environment variables `PROBLEMFORM_PROVIDER` / `PROBLEMFORM_MODEL` (the same fallback `problemform run` uses).
+4. The built-in defaults (`openai` + `DEFAULT_OPENAI_MODEL`).
 
 Per-case workflow:
 
