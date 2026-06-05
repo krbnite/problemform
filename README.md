@@ -311,6 +311,7 @@ For this reason, ProblemForm defaults to `max_iterations=1`. Additional iteratio
 - [`docs/environment.md`](docs/environment.md) — installation and environment setup.
 - [`docs/glossary.md`](docs/glossary.md) — definitions of Information Gap, Expert Panel, Convergence, etc.
 - [`docs/designs/milestone_03_evaluation_framework.md`](docs/designs/milestone_03_evaluation_framework.md) — design reference for the evaluation framework.
+- [`docs/designs/problemform_scope.md`](docs/designs/problemform_scope.md) — working hypothesis on validated subset vs intended scope, the `ProblemForm × Answer Model` measurement confound, and M3B's potential role as the bridge to non-question inputs.
 - [`docs/backlog.md`](docs/backlog.md) — tracked ideas, design speculation, and not-yet-active work.
 - [`benchmarks/README.md`](benchmarks/README.md) — benchmark corpus layout and conventions.
 

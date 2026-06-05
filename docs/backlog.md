@@ -11,6 +11,22 @@ Conventions:
 
 ---
 
+## Working hypothesis: M3B as the bridge from question refinement to general problem formulation
+
+### Problem
+
+The benchmark corpus is 100% questions, the phase prompts use "question/answer" vocabulary, and the M3A evaluation framework measures `ProblemForm × Answer Model` (a composite of formulation quality and answerer quality) rather than ProblemForm directly. The Constitution names seven input types — problem, objective, decision, request, inquiry, question, prompt — and emphasizes that the *deliverable is the formulation, not the answer*. The validated subset (questions) has matured faster than the intended scope (everything the Constitution names). How does the project close the gap?
+
+### Discussion
+
+A design reference at [`docs/designs/problemform_scope.md`](designs/problemform_scope.md) lays out the structural question and proposes a **working hypothesis** for the M3B design pass to test: that M3B (rubric framework + property checks) can be designed as the *bridge* from question refinement to general problem formulation, by treating the evaluation target (formulation vs downstream artifact) as a first-class design axis.
+
+The hypothesis is not a decision. The M3B design pass should confirm, modify, or reject it. If it survives, the implied issue ordering is #8+#9 (M3B design, together) → #6 (corpus expansion, rescoped to category diversity, with the Aquinas case as a prototype) → #7 (calibration, with both Path A and Path B available). If it doesn't, the previous ordering is reasonable.
+
+Cross-references: this hypothesis is the umbrella for the active backlog entries on `Rubric Framework Design (M3B)`, `Property Check Framework Design (M3B)`, `Benchmark Corpus Expansion and Benchmark Validity`, and `Benchmark Outcome Calibration (100% Refined Wins)`.
+
+---
+
 ## Benchmark Runtime Aggregation by Role (issue #4)
 
 ### Problem
