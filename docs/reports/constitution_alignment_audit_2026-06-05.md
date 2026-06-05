@@ -1,6 +1,31 @@
-# Constitution Alignment Audit
+---
+title: "Constitution Alignment Audit"
+document_type: "audit"
+status: "active"
+created: "2026-06-05"
+updated: "2026-06-05"
+author: "Codex"
+authoritative_reference: "docs/problemform_constitution.md"
+related:
+  documents:
+    - "docs/designs/problemform_scope.md"
+    - "docs/designs/milestone_03b_rubrics_and_properties.md"
+    - "docs/backlog.md"
+    - "docs/reports/constitution_alignment_audit_review_2026-06-05.md"
+scope:
+  inspected:
+    - "CLAUDE.md"
+    - "README.md"
+    - "docs/architecture.md"
+    - "docs/roadmap.md"
+    - "docs/backlog.md"
+    - "docs/designs/"
+    - "problemform/agents/"
+    - "problemform/eval/"
+    - "benchmarks/"
+---
 
-Date: 2026-06-05
+# Constitution Alignment Audit
 
 ## Scope And Method
 
@@ -352,29 +377,3 @@ The highest-risk move would be to keep expanding M3A as if answer-outcome evalua
 ### Concrete Recommendation
 
 Proceed with M3B-as-bridge as the next major alignment-preserving step. Treat it as an empirical test of whether ProblemForm can evaluate formulations directly, not as a foregone conclusion. If it works, it becomes the bridge from question refinement back to the Constitution's full problem-formulation vision.
-
-## Metadata
-
-```yaml
-date_created: "2026-06-05"
-document_type: "constitution_alignment_audit"
-status: "active"
-scope:
-  authoritative_reference: "docs/problemform_constitution.md"
-  inspected:
-    - "CLAUDE.md"
-    - "README.md"
-    - "docs/architecture.md"
-    - "docs/roadmap.md"
-    - "docs/backlog.md"
-    - "docs/designs/"
-    - "problemform/agents/"
-    - "problemform/eval/"
-    - "benchmarks/"
-created_by: "Codex"
-implementation_changes: "none"
-files_created:
-  - "docs/reports/constitution_alignment_audit_2026-06-05.md"
-active_document: true
-shelved: false
-```

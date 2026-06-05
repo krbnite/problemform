@@ -1,3 +1,23 @@
+---
+title: "Milestone 3B design reference: rubrics, property checks, and the formulation target"
+document_type: "design"
+status: "active"
+created: "2026-06-05"
+updated: "2026-06-05"
+author: "Claude Code"
+authoritative_reference: "docs/problemform_constitution.md"
+related:
+  documents:
+    - "docs/problemform_constitution.md"
+    - "docs/designs/problemform_scope.md"
+    - "docs/designs/milestone_03_evaluation_framework.md"
+    - "docs/backlog.md"
+  issues:
+    - 8
+    - 9
+    - 12
+---
+
 # Milestone 3B design reference: rubrics, property checks, and the formulation target
 
 **Status: active design pass. Tests the working hypothesis from [`problemform_scope.md`](problemform_scope.md). Sections labeled *Hypothesis*, *Decision*, or *Open question* signal the resolution status of each claim.**

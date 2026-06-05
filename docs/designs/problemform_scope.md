@@ -1,3 +1,25 @@
+---
+title: "ProblemForm scope: validated subset, intended scope, and the role of M3B"
+document_type: "design"
+status: "active"
+created: "2026-06-05"
+updated: "2026-06-05"
+author: "Claude Code"
+authoritative_reference: "docs/problemform_constitution.md"
+related:
+  documents:
+    - "docs/problemform_constitution.md"
+    - "docs/designs/milestone_03_evaluation_framework.md"
+    - "docs/designs/milestone_03b_rubrics_and_properties.md"
+    - "docs/backlog.md"
+  issues:
+    - 6
+    - 7
+    - 8
+    - 9
+    - 12
+---
+
 # ProblemForm scope: validated subset, intended scope, and the role of M3B
 
 **Status: working hypothesis / design reference / discussion artifact. Not a project decision record. Future M3B design work may confirm, modify, or reject parts of this hypothesis.**
