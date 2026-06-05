@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from contextlib import contextmanager
 from pathlib import Path
@@ -355,6 +356,16 @@ def benchmark(
         _die(str(exc))
     if not cases:
         _die(f"no YAML test cases found in {suite}")
+
+    # Resolve role-specific env vars before falling through to make_provider's
+    # generic PROBLEMFORM_PROVIDER / PROBLEMFORM_MODEL fallback. Precedence:
+    # CLI flag > role-specific env var > generic env var > built-in default.
+    # The PROBLEMFORM_EVAL_* prefix scopes these to the evaluation framework;
+    # they do NOT affect the workflow's convergence judge.
+    answer_provider = answer_provider or os.environ.get("PROBLEMFORM_EVAL_ANSWER_PROVIDER")
+    answer_model = answer_model or os.environ.get("PROBLEMFORM_EVAL_ANSWER_MODEL")
+    judge_provider = judge_provider or os.environ.get("PROBLEMFORM_EVAL_JUDGE_PROVIDER")
+    judge_model = judge_model or os.environ.get("PROBLEMFORM_EVAL_JUDGE_MODEL")
 
     pf_provider_obj = _make_provider_or_die(pf_provider, pf_model)
     answer_provider_obj = _make_provider_or_die(answer_provider, answer_model)
