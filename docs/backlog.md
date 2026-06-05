@@ -11,6 +11,208 @@ Conventions:
 
 ---
 
+## Benchmark Progress & Runtime Visibility
+
+### Problem
+
+Benchmark runs can take many minutes and incur non-trivial API costs, but currently provide almost no runtime visibility. Users see only a start message and then wait for final results.
+
+### Discussion
+
+The first real benchmark run exposed a usability problem: it is difficult to distinguish a healthy long-running benchmark from a hung process.
+
+Potential improvements:
+
+- Progress bar (N of M cases completed)
+- Current case name
+- Elapsed runtime
+- Per-case timing breakdown
+- Optional token/cost estimates
+- Rich live status updates
+
+The value is operational rather than analytical. Better visibility reduces uncertainty during long benchmark runs and makes future benchmarking work easier.
+
+Recommended direction: implement before substantial corpus expansion or large-scale benchmarking. Visibility will become more important as evaluation suites grow.
+
+---
+
+## Benchmark Cost, Runtime, and Model Ablation Studies
+
+### Problem
+
+The first benchmark run (~5 cases) consumed approximately 15 minutes and roughly $1 of API usage when using GPT-5.4 for all roles. The project currently has little visibility into the tradeoff between model quality, runtime, and evaluation stability.
+
+### Discussion
+
+The evaluation framework introduces three independent model roles:
+
+- ProblemForm
+- Answer Generator
+- Comparative Judge
+
+These roles may not require identical model capability.
+
+Potential experiments:
+
+- Hold Judge constant while reducing Answer model size.
+- Hold Answer constant while reducing Judge size.
+- Reduce ProblemForm model size.
+- Evaluate mixed-family configurations.
+
+The goal is to identify a "sweet spot" where benchmark outcomes remain stable while cost and latency decrease substantially.
+
+Future tooling may include benchmark sweeps or matrix experiments.
+
+Recommended direction: gather baseline data before implementing automation.
+
+---
+
+## Prompt-Distance and Answer-Distance Instrumentation
+
+### Problem
+
+The system currently evaluates prompt refinement through comparative judgments, but does not directly measure how much prompts or answers change between iterations.
+
+### Discussion
+
+Potential measurements include:
+
+- Prompt₀ ↔ Prompt₁ distance
+- Prompt₀ ↔ Promptₙ distance
+- Promptₙ₋₁ ↔ Promptₙ distance
+- Raw answer ↔ refined answer distance
+
+Possible uses:
+
+- Detect over-refinement
+- Detect near-convergence
+- Identify large prompt changes that produce negligible answer changes
+- Identify small prompt changes that produce large answer changes
+- Generate future convergence heuristics
+
+The measurements are intended initially as instrumentation rather than decision-making inputs.
+
+Open question: whether distance should be semantic, embedding-based, judge-based, or derived from multiple signals.
+
+Recommended direction: collect metrics first, interpret later.
+
+---
+
+## Benchmark Corpus Expansion and Benchmark Validity
+
+### Problem
+
+The current benchmark corpus contains only five cases. Early benchmark results showed 100% refined wins and 0% raw wins or ties, raising questions about corpus representativeness and evaluation validity.
+
+### Discussion
+
+Possible explanations:
+
+- The corpus genuinely favors refinement.
+- The judge is too permissive.
+- Same-family judging influences results.
+- Tie criteria are under-specified.
+- The corpus lacks sufficient control cases.
+
+Future corpus goals:
+
+- Increase size substantially (20-30+ cases).
+- Add additional control cases.
+- Add cases where refinement is expected to have little effect.
+- Add cases where refinement may plausibly make results worse.
+- Improve domain diversity.
+
+The benchmark should remain a measurement tool rather than an advocacy artifact.
+
+Recommended direction: expand the corpus before drawing strong conclusions from aggregate win rates.
+
+---
+
+## Benchmark Outcome Calibration (100% Refined Wins)
+
+### Problem
+
+The first benchmark run produced 100% refined wins, 0% raw wins, 0% ties, and 0% degradations.
+
+### Discussion
+
+This result is encouraging but difficult to interpret.
+
+Possible explanations include:
+
+* ProblemForm genuinely improved all five cases.
+* The corpus naturally favors refinement.
+* The judge underuses ties.
+* Same-family judge bias.
+* Materiality thresholds are too strict or too weak.
+* The control case is insufficiently adversarial.
+
+Questions worth investigating:
+
+* Do results hold with cross-family judges?
+* Do results hold with multiple judges?
+* Do humans agree with the benchmark outcomes?
+* Does the tie rate remain near zero as the corpus grows?
+* Can deliberately poor refinements produce expected degradations?
+
+Recommended direction: treat early benchmark results as framework validation rather than evidence of ProblemForm effectiveness.
+
+⸻
+
+## Rubric Framework Design (M3B)
+
+### Problem
+
+Phase A evaluates answer quality using comparative judgments only. Phase B introduces rubric-based evaluation, but important design decisions remain unresolved.
+
+### Discussion
+
+Open questions include:
+
+* Rubric schema design.
+* Criterion weighting.
+* Criterion aggregation.
+* Whether rubric scores should ever be aggregated into a single number.
+* Judge prompts for criterion scoring.
+* Reporting format.
+* Handling disagreements between rubric outcomes and comparative judgments.
+
+The design document establishes the architectural direction, but implementation details remain open.
+
+Recommended direction: create a dedicated design document before implementation begins.
+
+⸻
+
+## Property Check Framework Design (M3B)
+
+### Problem
+
+Phase B introduces expected-property evaluation, but the implementation strategy remains intentionally deferred.
+
+### Discussion
+
+Property checks are intended to answer questions such as:
+
+* Did the answer address the requested audience?
+* Did the answer remain technically accurate?
+* Did the answer provide actionable next steps?
+* Did the answer avoid known failure modes?
+
+Open questions include:
+
+* Property specification format.
+* Judge prompts.
+* Binary vs graded scoring.
+* Relationship to rubric evaluation.
+* Reporting and aggregation.
+* Whether properties are corpus-wide or test-case-specific.
+
+The architecture already assumes LLM-based evaluation rather than code-based checks, but significant design work remains.
+
+Recommended direction: treat property checks as a separate subsystem rather than a small extension of comparative judging.
+
+---
+
 ## Per-role provider/model overrides for the workflow's Convergence Judge
 
 ### Problem
