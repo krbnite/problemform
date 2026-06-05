@@ -246,4 +246,75 @@ def test_detect_same_family_returns_none_when_cross_provider():
     assert _detect_same_family("openai", "gpt-5.4", "anthropic", "claude-sonnet-4-6") is None
 
 
+def test_on_progress_emits_expected_event_sequence(tmp_path: Path):
+    events = []
+    run_benchmark(
+        [_case("c1"), _case("c2")],
+        pf_provider=_PFStub(),
+        answer_provider=_AnswerStub(),
+        judge_provider=_JudgeStub(winner="b", materiality="material"),
+        output_dir=tmp_path,
+        max_iterations=1,
+        rng=random.Random(0),
+        on_progress=events.append,
+    )
+
+    kinds = [e.kind for e in events]
+    expected = (
+        ["run_start"]
+        + ["case_start"] + ["step"] * 4 + ["case_done"]
+        + ["case_start"] + ["step"] * 4 + ["case_done"]
+        + ["run_done"]
+    )
+    assert kinds == expected
+
+    # case_index / total are correct on case_start events
+    case_starts = [e for e in events if e.kind == "case_start"]
+    assert [e.case_index for e in case_starts] == [0, 1]
+    assert all(e.total == 2 for e in case_starts)
+
+    # step events carry both case and step
+    steps = [e for e in events if e.kind == "step"]
+    assert [e.step for e in steps[:4]] == [
+        "problemform_refinement", "raw_answer", "refined_answer", "comparative_judge",
+    ]
+    assert all(e.case is not None for e in steps)
+
+    # case_done events carry a timing dict populated with the four sub-steps
+    case_dones = [e for e in events if e.kind == "case_done"]
+    assert len(case_dones) == 2
+    for e in case_dones:
+        assert e.timing is not None
+        assert {"pf_run", "raw_answer", "refined_answer", "judge"} <= set(e.timing.keys())
+
+
+def test_on_progress_emits_case_errored_on_judge_failure(tmp_path: Path):
+    """A judge exception produces case_errored (not case_done) with errors populated."""
+    class _AlwaysFailingJudge:
+        def generate_text(self, *a, **kw):
+            return ""
+
+        def generate_structured(self, *a, **kw):
+            raise RuntimeError("boom")
+
+    events = []
+    run_benchmark(
+        [_case("c1")],
+        pf_provider=_PFStub(),
+        answer_provider=_AnswerStub(),
+        judge_provider=_AlwaysFailingJudge(),
+        output_dir=tmp_path,
+        max_iterations=1,
+        rng=random.Random(0),
+        on_progress=events.append,
+    )
+
+    kinds = [e.kind for e in events]
+    assert "case_errored" in kinds
+    assert "case_done" not in kinds
+
+    errored = next(e for e in events if e.kind == "case_errored")
+    assert errored.errors is not None and any("judge failed" in m for m in errored.errors)
+
+
 import pytest  # placed at end to avoid noise above

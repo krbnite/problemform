@@ -400,7 +400,79 @@ def benchmark(
 
     err.print(f"[dim]Running benchmark over {len(cases)} cases; output: {output}")
 
-    with _structured_output_errors():
+    from rich.progress import (
+        BarColumn,
+        MofNCompleteColumn,
+        Progress,
+        SpinnerColumn,
+        TextColumn,
+        TimeElapsedColumn,
+        TimeRemainingColumn,
+    )
+    from rich.table import Table
+
+    from problemform.eval.engine import ProgressEvent
+
+    def _fmt_seconds(s: float) -> str:
+        if s >= 60:
+            m, sec = divmod(int(round(s)), 60)
+            return f"{m}m {sec:02d}s"
+        return f"{s:.1f}s"
+
+    progress = Progress(
+        SpinnerColumn(),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TextColumn("{task.description}"),
+        TimeElapsedColumn(),
+        TimeRemainingColumn(),
+        console=err,
+        transient=False,
+    )
+
+    with progress, _structured_output_errors():
+        task_id = progress.add_task("", total=len(cases))
+
+        def on_progress(event: ProgressEvent) -> None:
+            if event.kind == "run_start":
+                progress.update(task_id, description="[dim]starting…")
+                return
+            if event.kind == "case_start":
+                assert event.case is not None
+                progress.update(
+                    task_id,
+                    description=f"[bold]{event.case.name}[/bold]",
+                )
+                return
+            if event.kind == "step":
+                assert event.case is not None and event.step is not None
+                progress.update(
+                    task_id,
+                    description=f"[bold]{event.case.name}[/bold] · [cyan]{event.step}[/cyan]",
+                )
+                progress.console.print(
+                    f"[dim]\\[{event.case_index + 1}/{event.total}] "
+                    f"{event.case.name} · {event.step}[/dim]"
+                )
+                return
+            if event.kind in ("case_done", "case_errored"):
+                assert event.case is not None
+                elapsed = _fmt_seconds(sum((event.timing or {}).values()))
+                if event.kind == "case_done":
+                    progress.console.print(
+                        f"[green]✓[/green] {event.case.name} ({elapsed})"
+                    )
+                else:
+                    err_summary = "; ".join(event.errors or []) or "no detail"
+                    progress.console.print(
+                        f"[red]✗[/red] {event.case.name} ({elapsed}) — errors: {err_summary}"
+                    )
+                progress.advance(task_id)
+                return
+            if event.kind == "run_done":
+                progress.update(task_id, description="[dim]done")
+                return
+
         report = run_benchmark(
             cases,
             pf_provider=pf_provider_obj,
@@ -410,7 +482,30 @@ def benchmark(
             max_iterations=max_iterations,
             config=config,
             bias_warnings=bias_warnings,
+            on_progress=on_progress,
         )
+
+    # Per-case timing breakdown (stderr; report contents unchanged).
+    timing_table = Table(title="Per-case timing", show_lines=False)
+    timing_table.add_column("Case", overflow="fold")
+    timing_table.add_column("Total", justify="right")
+    timing_table.add_column("PF", justify="right")
+    timing_table.add_column("Raw", justify="right")
+    timing_table.add_column("Refined", justify="right")
+    timing_table.add_column("Judge", justify="right")
+    for r in report.test_case_results:
+        t = r.timing or {}
+        total_s = sum(t.values())
+        timing_table.add_row(
+            r.test_case.name,
+            _fmt_seconds(total_s),
+            _fmt_seconds(t.get("pf_run", 0.0)) if "pf_run" in t else "—",
+            _fmt_seconds(t.get("raw_answer", 0.0)) if "raw_answer" in t else "—",
+            _fmt_seconds(t.get("refined_answer", 0.0)) if "refined_answer" in t else "—",
+            _fmt_seconds(t.get("judge", 0.0)) if "judge" in t else "—",
+        )
+    err.print(timing_table)
+
     write_run(report, output)
 
     # Emit the requested format to stdout for piping.

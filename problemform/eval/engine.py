@@ -20,8 +20,12 @@ from __future__ import annotations
 import hashlib
 import random
 import time
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Literal
+
+from pydantic import BaseModel, Field
 
 from problemform.core.language_models import LLMProvider
 from problemform.core.workflow import run as pf_run
@@ -32,6 +36,45 @@ from problemform.eval.models import (
     TestCase,
     TestCaseResult,
 )
+
+
+ProgressEventKind = Literal[
+    "run_start",
+    "case_start",
+    "step",
+    "case_done",
+    "case_errored",
+    "run_done",
+]
+
+ProgressStep = Literal[
+    "problemform_refinement",
+    "raw_answer",
+    "refined_answer",
+    "comparative_judge",
+]
+
+
+class ProgressEvent(BaseModel):
+    """Structured progress signal emitted by ``run_benchmark``.
+
+    The engine is UI-agnostic: it emits events and lets callers (CLI, tests,
+    other library consumers) decide how to render them. ``run_benchmark`` and
+    ``_run_one_case`` accept an optional ``on_progress`` callback; if ``None``
+    is passed (the default), no events are produced and behavior is identical
+    to a call with no progress instrumentation.
+    """
+
+    kind: ProgressEventKind
+    case: TestCase | None = None
+    case_index: int
+    total: int
+    step: ProgressStep | None = None
+    timing: dict[str, float] | None = None
+    errors: list[str] | None = Field(default=None)
+
+
+OnProgress = Callable[[ProgressEvent], None]
 
 
 def _now() -> datetime:
@@ -72,6 +115,9 @@ def _run_one_case(
     max_iterations: int,
     case_dir: Path,
     rng: random.Random,
+    case_index: int = 0,
+    total: int = 1,
+    on_progress: OnProgress | None = None,
 ) -> TestCaseResult:
     """Execute the per-case pipeline. Errors are captured, not raised."""
     timing: dict[str, float] = {}
@@ -84,6 +130,17 @@ def _run_one_case(
 
     case_dir.mkdir(parents=True, exist_ok=True)
 
+    def _emit(kind: ProgressEventKind, *, step: ProgressStep | None = None) -> None:
+        if on_progress is None:
+            return
+        on_progress(ProgressEvent(
+            kind=kind, case=case, case_index=case_index, total=total,
+            step=step,
+            timing=dict(timing) if kind in ("case_done", "case_errored") else None,
+            errors=list(errors) if kind == "case_errored" else None,
+        ))
+
+    _emit("step", step="problemform_refinement")
     try:
         t0 = time.time()
         state = pf_run(case.raw_question, pf_provider, max_iterations=max_iterations)
@@ -95,6 +152,7 @@ def _run_one_case(
     except Exception as exc:
         errors.append(f"problemform.run failed: {type(exc).__name__}: {exc}")
 
+    _emit("step", step="raw_answer")
     try:
         t0 = time.time()
         raw_answer = answer_provider.generate_text(case.raw_question)
@@ -103,6 +161,7 @@ def _run_one_case(
     except Exception as exc:
         errors.append(f"raw answer generation failed: {type(exc).__name__}: {exc}")
 
+    _emit("step", step="refined_answer")
     try:
         t0 = time.time()
         refined_answer = answer_provider.generate_text(refined_prompt)
@@ -112,6 +171,7 @@ def _run_one_case(
         errors.append(f"refined answer generation failed: {type(exc).__name__}: {exc}")
 
     if not errors:
+        _emit("step", step="comparative_judge")
         try:
             t0 = time.time()
             judgment = judge_answers(
@@ -120,6 +180,8 @@ def _run_one_case(
             timing["judge"] = time.time() - t0
         except Exception as exc:
             errors.append(f"judge failed: {type(exc).__name__}: {exc}")
+
+    _emit("case_errored" if errors else "case_done")
 
     return TestCaseResult(
         test_case=case,
@@ -183,6 +245,7 @@ def run_benchmark(
     config: dict | None = None,
     bias_warnings: list[str] | None = None,
     rng: random.Random | None = None,
+    on_progress: OnProgress | None = None,
 ) -> BenchmarkReport:
     """Run the full benchmark pipeline over ``cases``.
 
@@ -190,23 +253,41 @@ def run_benchmark(
     aggregates a ``BenchmarkReport`` at the end. The report is returned but
     NOT written here; callers (typically the CLI) handle ``report.json`` /
     ``report.md`` persistence.
+
+    If ``on_progress`` is provided, structured ``ProgressEvent``s are emitted
+    at run start, case start, each sub-step transition, case completion or
+    error, and run completion. When ``None``, no events are produced.
     """
     rng = rng or random.Random()
     started_at = _now()
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     cases_dir = output_dir / "cases"
+    total = len(cases)
+
+    if on_progress is not None:
+        on_progress(ProgressEvent(kind="run_start", case_index=0, total=total))
 
     results: list[TestCaseResult] = []
-    for case in cases:
+    for i, case in enumerate(cases):
+        if on_progress is not None:
+            on_progress(ProgressEvent(
+                kind="case_start", case=case, case_index=i, total=total,
+            ))
         case_dir = cases_dir / case.name
         result = _run_one_case(
             case, pf_provider, answer_provider, judge_provider,
             max_iterations=max_iterations,
             case_dir=case_dir,
             rng=rng,
+            case_index=i,
+            total=total,
+            on_progress=on_progress,
         )
         results.append(result)
+
+    if on_progress is not None:
+        on_progress(ProgressEvent(kind="run_done", case_index=total, total=total))
 
     finished_at = _now()
     return BenchmarkReport(
