@@ -1,0 +1,18 @@
+schema_version: 1
+name: api_design_rest_vs_graphql
+category: technical
+tags:
+  - api-design
+  - architecture-decision
+  - constraint-elicitation
+raw_question: >
+  Should I use REST or GraphQL for my new API?
+expected_properties:
+  - surfaces latent constraints (scale, team size, client mix)
+  - identifies the relevant decision criteria (caching needs, schema evolution, etc.)
+  - resists giving a generic recommendation without context
+  - acknowledges that the answer depends on the specifics
+notes: |
+  This case tests latent-constraint surfacing on a classic technology choice.
+  A bad refined prompt would still ask "which is better in general"; a good
+  one should require concrete constraints before recommending an approach.

@@ -1,0 +1,17 @@
+schema_version: 1
+name: code_review_prep
+category: practical
+tags:
+  - software-engineering
+  - context-elicitation
+raw_question: >
+  How should I prepare for my upcoming code review?
+expected_properties:
+  - elicits the kind of code under review (language, size, domain)
+  - elicits the reviewer's seniority and the stakes of the review
+  - elicits the user's role (author or reviewer)
+  - avoids generic checklist advice that ignores context
+notes: |
+  This case tests context elicitation. The raw question is severely
+  underspecified; a useful refined prompt should ask for or assume specific
+  context rather than producing a generic "prepare for code review" answer.

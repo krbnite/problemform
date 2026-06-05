@@ -318,5 +318,99 @@ def export(
         _write_text_or_die(Path(output), text)
 
 
+@app.command()
+def benchmark(
+    suite: Path = typer.Argument(
+        ..., exists=True, file_okay=False, dir_okay=True, readable=True,
+        help="Path to a benchmarks suite directory (YAML test cases)",
+    ),
+    pf_provider: str = typer.Option(None, "--pf-provider"),
+    pf_model: str = typer.Option(None, "--pf-model"),
+    answer_provider: str = typer.Option(None, "--answer-provider"),
+    answer_model: str = typer.Option(None, "--answer-model"),
+    judge_provider: str = typer.Option(None, "--judge-provider"),
+    judge_model: str = typer.Option(None, "--judge-model"),
+    max_iterations: int = typer.Option(1, "--max-iterations", min=1),
+    output: Path = typer.Option(
+        None, "--output",
+        help="Run directory (default: .problemform/eval_runs/<auto-id>/)",
+    ),
+    format: str = FormatOpt,
+) -> None:
+    """Run a YAML test-case suite end-to-end and write JSON + Markdown reports.
+
+    Uses three provider roles: ProblemForm (refines the prompt), Answer
+    (generates raw and refined answers), and Judge (compares them). Each role
+    has its own --*-provider / --*-model flags; unset flags fall through to
+    the defaults already used by `problemform run`.
+    """
+    # Lazy imports so eval is loaded only when the command runs.
+    from problemform.eval.corpus import CorpusError, load_test_cases
+    from problemform.eval.engine import _detect_same_family, run_benchmark
+    from problemform.eval.report import write_run
+
+    try:
+        cases = load_test_cases(suite)
+    except CorpusError as exc:
+        _die(str(exc))
+    if not cases:
+        _die(f"no YAML test cases found in {suite}")
+
+    pf_provider_obj = _make_provider_or_die(pf_provider, pf_model)
+    answer_provider_obj = _make_provider_or_die(answer_provider, answer_model)
+    judge_provider_obj = _make_provider_or_die(judge_provider, judge_model)
+
+    # Same-provider judge warning (warn-only per Phase A decision).
+    bias_warnings: list[str] = []
+    warn = _detect_same_family(
+        answer_provider_obj.__class__.__name__, answer_provider_obj.model,
+        judge_provider_obj.__class__.__name__, judge_provider_obj.model,
+    )
+    if warn:
+        err.print(f"[yellow]warning:[/yellow] {warn}")
+        bias_warnings.append(warn)
+
+    if output is None:
+        from datetime import datetime, timezone
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
+        output = Path(".problemform/eval_runs") / ts
+
+    config = {
+        "pf_provider": pf_provider_obj.__class__.__name__,
+        "pf_model": pf_provider_obj.model,
+        "answer_provider": answer_provider_obj.__class__.__name__,
+        "answer_model": answer_provider_obj.model,
+        "judge_provider": judge_provider_obj.__class__.__name__,
+        "judge_model": judge_provider_obj.model,
+        "max_iterations": max_iterations,
+        "position_randomized": True,
+        "judgments_per_pair": 1,
+    }
+
+    err.print(f"[dim]Running benchmark over {len(cases)} cases; output: {output}")
+
+    with _structured_output_errors():
+        report = run_benchmark(
+            cases,
+            pf_provider=pf_provider_obj,
+            answer_provider=answer_provider_obj,
+            judge_provider=judge_provider_obj,
+            output_dir=output,
+            max_iterations=max_iterations,
+            config=config,
+            bias_warnings=bias_warnings,
+        )
+    write_run(report, output)
+
+    # Emit the requested format to stdout for piping.
+    if format == "json":
+        console.print_json(report.model_dump_json())
+    elif format == "md":
+        from problemform.eval.report import render_markdown as render_eval_md
+        console.print(Markdown(render_eval_md(report)))
+    else:
+        _die(f"unknown --format {format!r}; expected 'md' or 'json'")
+
+
 if __name__ == "__main__":
     app()

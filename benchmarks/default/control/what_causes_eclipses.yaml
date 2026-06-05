@@ -1,0 +1,28 @@
+schema_version: 1
+name: what_causes_eclipses
+category: control
+tags:
+  - control
+  - factual
+  - well-formed
+raw_question: >
+  What causes eclipses?
+expected_properties:
+  - remains scientifically accurate
+  - does not lose substantive content compared to a direct answer
+  - does not bloat the prompt with unnecessary clarifying questions
+  - distinguishes solar from lunar eclipses if depth permits
+expected_failure_modes:
+  - excessive hedging or clarifying when the question is already well-formed
+  - loss of factual accuracy in the refined formulation
+  - substantive degradation relative to a bare-question answer
+notes: |
+  CONTROL CASE.
+
+  Unlike the other starter cases, this question is well-formed and specific.
+  ProblemForm may add useful clarification (solar vs lunar, depth, audience)
+  OR it may bloat a perfectly good question into something worse.
+
+  This case exists to detect situations where refinement is unnecessary or
+  harmful. A degradation here is a feature of the eval, not a failure: it
+  tells us when ProblemForm should be left out of the loop.

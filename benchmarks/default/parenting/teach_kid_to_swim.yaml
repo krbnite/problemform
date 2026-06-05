@@ -1,0 +1,18 @@
+schema_version: 1
+name: teach_kid_to_swim
+category: parenting
+tags:
+  - parenting
+  - context-elicitation
+  - age-sensitive
+raw_question: >
+  How do I teach my kid to swim?
+expected_properties:
+  - elicits the child's age
+  - elicits the child's prior exposure to water and any fears
+  - elicits whether the parent can swim
+  - avoids one-size-fits-all advice that ignores age
+notes: |
+  This case tests context elicitation in a high-variance domain. Swimming
+  instruction for a 2-year-old, a 6-year-old, and a 12-year-old are different
+  problems; a useful refined prompt should foreground age and prior exposure.

@@ -45,3 +45,6 @@ htmlcov/
 
 # IDEs
 .idea/
+
+# ProblemForm local artifacts (eval runs, etc.)
+.problemform/
