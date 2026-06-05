@@ -1,6 +1,17 @@
-"""Phase A data model for the ProblemForm evaluation framework.
+"""Evaluation-framework data model.
 
-See `docs/designs/milestone_03_evaluation_framework.md` for the design rationale.
+Phase A (M3A) types — ``TestCase``, ``ComparativeJudgment``, ``TestCaseResult``,
+``AggregateMetrics``, ``BenchmarkReport`` — capture the answer-comparison
+contract. See ``docs/designs/milestone_03_evaluation_framework.md`` for that
+design.
+
+Phase B (M3B-α) types — ``Rubric`` / ``RubricCriterion`` / ``CriterionScore`` /
+``AbsoluteRubricEvaluation`` / ``RubricAggregate`` and ``PropertyCheck`` /
+``PropertyCheckResult`` / ``PropertyAggregate`` — add target-aware rubric and
+property-check evaluation. ``target`` is a first-class axis (``formulation`` or
+``artifact``) on rubrics and property checks; only absolute mode is supported
+in α (comparative mode deferred to M3B-β). See
+``docs/designs/milestone_03b_rubrics_and_properties.md``.
 """
 
 from __future__ import annotations
@@ -44,6 +55,93 @@ class ComparativeJudgment(BaseModel):
     key_differences: list[str] = Field(default_factory=list)
 
 
+# --- M3B-α: rubric + property-check types --------------------------------
+
+
+EvalTarget = Literal["formulation", "artifact"]
+RubricMode = Literal["absolute", "comparative"]
+CriterionScoring = Literal["binary", "graded_3", "graded_5"]
+EvalSubject = Literal["raw", "refined"]
+
+
+class RubricCriterion(BaseModel):
+    """A single criterion within a ``Rubric``.
+
+    ``scoring`` selects the raw-score scale used by the judge; the runner
+    normalizes to ``0.0..1.0`` for aggregation. ``weight`` enters the rubric's
+    aggregate as a weighted average.
+    """
+
+    name: str
+    description: str
+    weight: float = 1.0
+    scoring: CriterionScoring = "graded_5"
+    rationale_required: bool = True
+
+
+class Rubric(BaseModel):
+    """A named, ordered collection of weighted criteria with a target/mode.
+
+    Phase α only ships absolute-mode rubrics; comparative mode is reserved for
+    M3B-β. The ``target`` axis (``formulation`` vs ``artifact``) is the bridge
+    mechanism — a single rubric framework can evaluate either the prompt /
+    problem statement produced by ProblemForm or the downstream answer.
+    """
+
+    name: str
+    description: str
+    target: EvalTarget
+    mode: RubricMode
+    criteria: list[RubricCriterion]
+    notes: str | None = None
+    schema_version: int = 1
+
+
+class CriterionScore(BaseModel):
+    """A judge's verdict on one ``RubricCriterion`` for one subject."""
+
+    criterion_name: str
+    score: float          # normalized 0.0..1.0
+    raw_score: int        # what the judge returned on the criterion's scale
+    rationale: str
+
+
+class AbsoluteRubricEvaluation(BaseModel):
+    """Result of applying an absolute-mode rubric to a single subject."""
+
+    rubric_name: str
+    target: EvalTarget
+    subject: EvalSubject
+    criterion_scores: list[CriterionScore]
+    aggregate_score: float
+
+
+class PropertyCheck(BaseModel):
+    """A binary assertion about a subject, evaluated by an LLM judge.
+
+    Property checks are regression-shaped: they codify "this should always be
+    true" rather than measuring graded quality. ``target`` selects whether the
+    property is asserted about a formulation or about a downstream artifact.
+    """
+
+    name: str
+    description: str
+    target: EvalTarget
+    expected: bool = True
+
+
+class PropertyCheckResult(BaseModel):
+    """Outcome of evaluating one ``PropertyCheck`` against one subject."""
+
+    property_name: str
+    target: EvalTarget
+    subject: EvalSubject
+    holds: bool
+    expected: bool
+    passed: bool          # holds == expected
+    rationale: str
+
+
 class TestCaseResult(BaseModel):
     """Per-test-case artifact bundle.
 
@@ -51,6 +149,10 @@ class TestCaseResult(BaseModel):
     list via schema bump. Answer text is stored inline so report.json is
     self-contained; per-case ``.txt`` files are written separately for human
     inspection.
+
+    Phase B (M3B-α) adds ``rubric_evaluations`` and ``property_check_results``
+    as siblings to ``comparative_judgment``. Both default to empty lists so
+    pre-M3B-α ``report.json`` files continue to deserialize cleanly.
     """
 
     __test__ = False  # tell pytest this is not a test class
@@ -64,6 +166,8 @@ class TestCaseResult(BaseModel):
     comparative_judgment: ComparativeJudgment | None = None
     errors: list[str] = Field(default_factory=list)
     timing: dict[str, float] = Field(default_factory=dict)
+    rubric_evaluations: list[AbsoluteRubricEvaluation] = Field(default_factory=list)
+    property_check_results: list[PropertyCheckResult] = Field(default_factory=list)
 
 
 class AggregateMetrics(BaseModel):
@@ -101,6 +205,37 @@ class AggregateRuntime(BaseModel):
     judge_seconds: float = 0.0
 
 
+class RubricAggregate(BaseModel):
+    """Per-rubric mean absolute-score and raw-vs-refined delta across cases.
+
+    Defined narrowly for M3B-α: enough to populate the headline raw/refined
+    means and the delta the report renders. Per-criterion mean deltas and
+    other slicing can be added in M3B-β as the report grows.
+    """
+
+    rubric_name: str
+    target: EvalTarget
+    n_cases: int
+    raw_mean_aggregate: float | None
+    refined_mean_aggregate: float | None
+    mean_delta: float | None              # refined_mean - raw_mean
+
+
+class PropertyAggregate(BaseModel):
+    """Per-property pass-rate aggregation.
+
+    For M3B-α, each property carries a single ``target``; pass rates are
+    surfaced separately for raw vs refined subjects so a property can show
+    refinement-induced regressions or improvements at a glance.
+    """
+
+    property_name: str
+    target: EvalTarget
+    n_applied: int                        # number of cases the property was evaluated against
+    raw_pass_rate: float | None
+    refined_pass_rate: float | None
+
+
 class BenchmarkReport(BaseModel):
     run_id: str
     started_at: datetime
@@ -110,4 +245,6 @@ class BenchmarkReport(BaseModel):
     test_case_results: list[TestCaseResult] = Field(default_factory=list)
     aggregate: AggregateMetrics
     aggregate_runtime: AggregateRuntime = Field(default_factory=AggregateRuntime)
+    aggregate_rubrics: dict[str, RubricAggregate] = Field(default_factory=dict)
+    aggregate_properties: dict[str, PropertyAggregate] = Field(default_factory=dict)
     schema_version: int = 1

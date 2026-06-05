@@ -2,7 +2,12 @@ from pathlib import Path
 
 import pytest
 
-from problemform.eval.corpus import CorpusError, load_test_cases
+from problemform.eval.corpus import (
+    CorpusError,
+    load_property_suite,
+    load_rubrics,
+    load_test_cases,
+)
 
 DEFAULT_SUITE = Path(__file__).parent.parent / "benchmarks" / "default"
 
@@ -67,3 +72,173 @@ def test_load_test_cases_walks_recursively(tmp_path: Path):
     )
     cases = load_test_cases(tmp_path)
     assert {c.name for c in cases} == {"a", "b"}
+
+
+# --- M3B-α: rubric loader --------------------------------------------------
+
+
+def _rubric_yaml(name: str = "demo_rubric") -> str:
+    return (
+        f"name: {name}\n"
+        "description: a demo rubric for tests\n"
+        "target: formulation\n"
+        "mode: absolute\n"
+        "criteria:\n"
+        "  - name: central_claim\n"
+        "    description: names a central claim\n"
+        "  - name: assumption_surfacing\n"
+        "    description: surfaces load-bearing assumptions\n"
+        "    weight: 2.0\n"
+        "    scoring: graded_3\n"
+    )
+
+
+def test_load_rubrics_from_single_file(tmp_path: Path):
+    f = tmp_path / "one.yaml"
+    f.write_text(_rubric_yaml())
+    rubrics = load_rubrics(f)
+    assert len(rubrics) == 1
+    r = rubrics[0]
+    assert r.name == "demo_rubric"
+    assert r.target == "formulation"
+    assert r.mode == "absolute"
+    assert len(r.criteria) == 2
+    assert r.criteria[1].weight == 2.0
+    assert r.criteria[1].scoring == "graded_3"
+
+
+def test_load_rubrics_from_directory_walks_recursively(tmp_path: Path):
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "a.yaml").write_text(_rubric_yaml("rubric_a"))
+    (tmp_path / "b.yml").write_text(_rubric_yaml("rubric_b"))
+    rubrics = load_rubrics(tmp_path)
+    assert {r.name for r in rubrics} == {"rubric_a", "rubric_b"}
+
+
+def test_load_rubrics_rejects_non_yaml_file(tmp_path: Path):
+    f = tmp_path / "not_yaml.txt"
+    f.write_text(_rubric_yaml())
+    with pytest.raises(CorpusError, match="\\.yaml/\\.yml"):
+        load_rubrics(f)
+
+
+def test_load_rubrics_rejects_missing_path(tmp_path: Path):
+    with pytest.raises(CorpusError, match="does not exist"):
+        load_rubrics(tmp_path / "nope.yaml")
+
+
+def test_load_rubrics_rejects_malformed_yaml(tmp_path: Path):
+    bad = tmp_path / "bad.yaml"
+    bad.write_text("not a mapping")
+    with pytest.raises(CorpusError, match="top-level must be a mapping"):
+        load_rubrics(bad)
+
+
+def test_load_rubrics_rejects_missing_required_field(tmp_path: Path):
+    incomplete = tmp_path / "incomplete.yaml"
+    incomplete.write_text(
+        "name: x\n"
+        "description: y\n"
+        "target: formulation\n"
+        "mode: absolute\n"
+        # no criteria
+    )
+    with pytest.raises(CorpusError):
+        load_rubrics(incomplete)
+
+
+# --- M3B-α: property-suite loader ------------------------------------------
+
+
+def _property_suite_yaml_with_key() -> str:
+    return (
+        "suite_name: demo_suite\n"
+        "properties:\n"
+        "  - name: addresses_audience\n"
+        "    description: answer addresses the intended audience\n"
+        "    target: artifact\n"
+        "  - name: factually_accurate\n"
+        "    description: answer is factually accurate\n"
+        "    target: artifact\n"
+    )
+
+
+def _property_list_yaml() -> str:
+    return (
+        "- name: surfaces_central_claim\n"
+        "  description: formulation names a central claim\n"
+        "  target: formulation\n"
+        "- name: no_assumption_buried\n"
+        "  description: formulation does not bury its key assumption\n"
+        "  target: formulation\n"
+        "  expected: false\n"
+    )
+
+
+def test_load_property_suite_from_keyed_file(tmp_path: Path):
+    f = tmp_path / "suite.yaml"
+    f.write_text(_property_suite_yaml_with_key())
+    props = load_property_suite(f)
+    assert len(props) == 2
+    assert props[0].name == "addresses_audience"
+    assert props[0].target == "artifact"
+    assert props[1].expected is True
+
+
+def test_load_property_suite_from_bare_list_file(tmp_path: Path):
+    f = tmp_path / "list.yaml"
+    f.write_text(_property_list_yaml())
+    props = load_property_suite(f)
+    assert {p.name for p in props} == {
+        "surfaces_central_claim",
+        "no_assumption_buried",
+    }
+    no_buried = next(p for p in props if p.name == "no_assumption_buried")
+    assert no_buried.expected is False
+
+
+def test_load_property_suite_from_directory_walks_recursively(tmp_path: Path):
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "a.yaml").write_text(_property_suite_yaml_with_key())
+    (tmp_path / "b.yml").write_text(_property_list_yaml())
+    props = load_property_suite(tmp_path)
+    assert len(props) == 4
+    assert {p.name for p in props} == {
+        "addresses_audience",
+        "factually_accurate",
+        "surfaces_central_claim",
+        "no_assumption_buried",
+    }
+
+
+def test_load_property_suite_rejects_scalar_top_level(tmp_path: Path):
+    f = tmp_path / "scalar.yaml"
+    f.write_text("just a string")
+    with pytest.raises(CorpusError, match="must be either a list of"):
+        load_property_suite(f)
+
+
+def test_load_property_suite_rejects_non_list_properties_value(tmp_path: Path):
+    f = tmp_path / "bad_shape.yaml"
+    f.write_text("properties:\n  not_a_list: true\n")
+    with pytest.raises(CorpusError, match="'properties' must be a list"):
+        load_property_suite(f)
+
+
+def test_load_property_suite_rejects_non_mapping_entry(tmp_path: Path):
+    f = tmp_path / "bad_entry.yaml"
+    f.write_text("properties:\n  - just_a_string\n")
+    with pytest.raises(CorpusError, match="must be a mapping"):
+        load_property_suite(f)
+
+
+def test_load_property_suite_rejects_missing_required_field(tmp_path: Path):
+    f = tmp_path / "missing_target.yaml"
+    f.write_text(
+        "properties:\n"
+        "  - name: x\n"
+        "    description: y\n"
+        # no target
+    )
+    with pytest.raises(CorpusError):
+        load_property_suite(f)
