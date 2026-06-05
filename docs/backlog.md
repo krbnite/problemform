@@ -21,7 +21,9 @@ The benchmark corpus is 100% questions, the phase prompts use "question/answer" 
 
 A design reference at [`docs/designs/problemform_scope.md`](designs/problemform_scope.md) lays out the structural question and proposes a **working hypothesis** for the M3B design pass to test: that M3B (rubric framework + property checks) can be designed as the *bridge* from question refinement to general problem formulation, by treating the evaluation target (formulation vs downstream artifact) as a first-class design axis.
 
-The hypothesis is not a decision. The M3B design pass should confirm, modify, or reject it. If it survives, the implied issue ordering is #8+#9 (M3B design, together) → #6 (corpus expansion, rescoped to category diversity, with the Aquinas case as a prototype) → #7 (calibration, with both Path A and Path B available). If it doesn't, the previous ordering is reasonable.
+The M3B design pass has completed and produced [`docs/designs/milestone_03b_rubrics_and_properties.md`](designs/milestone_03b_rubrics_and_properties.md). It adopts the target axis as first-class, splits M3B into **M3B-α** (bridge MVP: absolute-mode formulation rubrics + property-check activation + default rubrics, sufficient to test the working hypothesis empirically) and **M3B-β** (comparative-mode rubrics + corpus diversification). The design design-resolves H2 ("mechanisms are scope-agnostic enough") and conditionally retains H1, H3, H4 pending empirical resolution in M3B-α validation experiments.
+
+The hypothesis remains untested. The M3B design pass argues the framework is *constructed so that* H1 and H2 are testable; M3B-α is the implementation patch that runs the test.
 
 Cross-references: this hypothesis is the umbrella for the active backlog entries on `Rubric Framework Design (M3B)`, `Property Check Framework Design (M3B)`, `Benchmark Corpus Expansion and Benchmark Validity`, and `Benchmark Outcome Calibration (100% Refined Wins)`.
 
@@ -169,23 +171,19 @@ Recommended direction: treat early benchmark results as framework validation rat
 
 ### Problem
 
-Phase A evaluates answer quality using comparative judgments only. Phase B introduces rubric-based evaluation, but important design decisions remain unresolved.
+Phase A evaluates answer quality using comparative judgments only. Phase B introduces rubric-based evaluation.
 
 ### Discussion
 
-Open questions include:
+The design pass has completed; see [`docs/designs/milestone_03b_rubrics_and_properties.md`](designs/milestone_03b_rubrics_and_properties.md). Decisions resolved in design:
 
-* Rubric schema design.
-* Criterion weighting.
-* Criterion aggregation.
-* Whether rubric scores should ever be aggregated into a single number.
-* Judge prompts for criterion scoring.
-* Reporting format.
-* Handling disagreements between rubric outcomes and comparative judgments.
+* Rubric schema (`Rubric`, `RubricCriterion`).
+* Per-criterion weighting and aggregation via weighted average of normalized scores.
+* Aggregate single-score is per-rubric, not cross-rubric; the framework deliberately does not synthesize one overall number across rubrics, property checks, and M3A.
+* Reporting format: `## Rubric evaluations` section in `report.md`, parallel to existing sections.
+* Disagreements between rubric and M3A verdicts get a dedicated diagnostic section in the report (the high-value cases for testing the M3A confound the scope note identifies).
 
-The design document establishes the architectural direction, but implementation details remain open.
-
-Recommended direction: create a dedicated design document before implementation begins.
+Next implementation step: M3B-α (see umbrella working-hypothesis entry above). This entry stays open until the M3B-α implementation issue lands and is closed; on close, move this entry to **Resolved** with a pointer to the merged commit.
 
 ⸻
 
@@ -193,29 +191,22 @@ Recommended direction: create a dedicated design document before implementation 
 
 ### Problem
 
-Phase B introduces expected-property evaluation, but the implementation strategy remains intentionally deferred.
+Phase B introduces expected-property evaluation, currently stored on `TestCase.expected_properties` but not evaluated.
 
 ### Discussion
 
-Property checks are intended to answer questions such as:
+The design pass has completed; see [`docs/designs/milestone_03b_rubrics_and_properties.md`](designs/milestone_03b_rubrics_and_properties.md). Decisions resolved in design:
 
-* Did the answer address the requested audience?
-* Did the answer remain technically accurate?
-* Did the answer provide actionable next steps?
-* Did the answer avoid known failure modes?
+* Property specification format (`PropertyCheck` Pydantic model, with target + description + expected polarity).
+* Properties are binary, not graded (graded-and-weighted use cases route to rubrics).
+* Both per-case and shared (corpus-wide via `benchmarks/properties/`) property suites supported.
+* Existing `TestCase.expected_properties` field activates as `target=artifact` property checks (retrofitting the M3A corpus from documentation to test).
+* New `formulation_properties` field on `TestCase` for `target=formulation` properties.
+* Reporting: `## Property checks` section in `report.md`, with per-property pass rate and per-case compliance.
 
-Open questions include:
+Designed in tandem with the rubric framework rather than in isolation; the two share the `target` axis but diverge on output type and use case (rubrics for graded quality measurement, properties for binary regression assertion).
 
-* Property specification format.
-* Judge prompts.
-* Binary vs graded scoring.
-* Relationship to rubric evaluation.
-* Reporting and aggregation.
-* Whether properties are corpus-wide or test-case-specific.
-
-The architecture already assumes LLM-based evaluation rather than code-based checks, but significant design work remains.
-
-Recommended direction: treat property checks as a separate subsystem rather than a small extension of comparative judging.
+Next implementation step: M3B-α (see umbrella working-hypothesis entry above). This entry stays open until the M3B-α implementation issue lands and is closed.
 
 ---
 
