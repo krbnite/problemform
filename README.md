@@ -209,11 +209,12 @@ problemform/
     models.py                # TestCase, ComparativeJudgment, TestCaseResult, AggregateMetrics, BenchmarkReport, Rubric, PropertyCheck + aggregate types
     corpus.py                # YAML loaders (corpus, rubrics, property suites)
     judges.py                # position-randomized comparative answer judging
-    engine.py                # per-case pipeline, failure containment, aggregation
+    engine.py                # per-case pipeline (M3A judgment + rubric/property lenses), failure containment, aggregation
     report.py                # JSON + Markdown reporting
     scoring.py               # shared rubric/property scoring utilities
-    rubric_runner.py         # absolute rubric scoring (built; not yet wired into benchmark)
-    property_runner.py       # behavioral property checks (built; not yet wired into benchmark)
+    rubric_runner.py         # absolute rubric scoring, run in the benchmark pipeline
+    property_runner.py       # behavioral property checks, run in the benchmark pipeline
+    defaults.py              # default rubric/property-suite resolution for benchmark
     prompts/                 # eval-only prompt constants (comparative, rubric, property judges)
 benchmarks/
   default/                   # shipped test suite (5 cases incl. control)

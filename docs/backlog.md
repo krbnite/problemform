@@ -286,6 +286,22 @@ Several docs still carry the **older `target=artifact` default** for `expected_p
 
 ---
 
+## Separate M3A vs. rubric/property lens error accounting (future)
+
+### Problem
+
+M3B-α.4 deliberately decoupled the M3A scoreboard from lens failures: `_aggregate()` (`problemform/eval/engine.py`) counts a case as completed on the presence of a `comparative_judgment` alone, so a rubric- or property-lens failure is recorded in `TestCaseResult.errors[]` (and can emit a `case_errored` progress event) **without** dropping the case from `AggregateMetrics.n_errored`. The three lenses are independent by design; a rubric-judge blip should not invalidate a clean M3A verdict.
+
+### Consequence (intentional, not a bug)
+
+A benchmark report can legitimately show `Errored: 0` in the headline while the `## Errors` section lists lens failures for a case. This is by design as of α.4, but the single `errors[]` list + single `n_errored` counter conflate two different questions ("did the M3A pipeline fail?" vs. "did a rubric/property lens fail?").
+
+### Possible future work
+
+Introduce per-lens error accounting so the report can distinguish M3A pipeline errors from rubric/property lens errors (e.g. `n_errored_m3a` vs. per-lens failure counts, or a structured `errors` grouping by lens). **Not** needed before the M3B-α validation experiments — flagged here so the current asymmetry is documented rather than surprising when reading validation reports. No architectural change requested now.
+
+---
+
 ## Resolved
 
 - **Benchmark Progress & Runtime Visibility** — implemented in commit `eb894c4` ("Add benchmark progress visibility"); GitHub issue [#3](https://github.com/krbnite/problemform/issues/3) closed. `benchmark` now renders a live Rich progress bar (M/N cases, current case + step, elapsed, ETA), prints per-step breadcrumb lines and case-completion lines for scrollback durability, and emits a per-case timing breakdown table on completion. All progress output goes to stderr; stdout remains usable for `--format json` piping.
