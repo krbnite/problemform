@@ -206,14 +206,19 @@ problemform/
     language_models.py       # LLMProvider Protocol, OpenAI + Anthropic providers, error types
   agents/                    # one PROMPT constant per phase
   eval/
-    models.py                # TestCase, ComparativeJudgment, TestCaseResult, AggregateMetrics, BenchmarkReport
-    corpus.py                # YAML loader
+    models.py                # TestCase, ComparativeJudgment, TestCaseResult, AggregateMetrics, BenchmarkReport, Rubric, PropertyCheck + aggregate types
+    corpus.py                # YAML loaders (corpus, rubrics, property suites)
     judges.py                # position-randomized comparative answer judging
     engine.py                # per-case pipeline, failure containment, aggregation
     report.py                # JSON + Markdown reporting
-    prompts/                 # eval-only prompt constants
+    scoring.py               # shared rubric/property scoring utilities
+    rubric_runner.py         # absolute rubric scoring (built; not yet wired into benchmark)
+    property_runner.py       # behavioral property checks (built; not yet wired into benchmark)
+    prompts/                 # eval-only prompt constants (comparative, rubric, property judges)
 benchmarks/
   default/                   # shipped test suite (5 cases incl. control)
+  rubrics/                   # shipped absolute rubrics (formulation_quality_v1, answer_quality_v1)
+  properties/                # shipped property suites (artifact_baseline_v1)
 docs/                        # constitution, architecture, CLI spec, design references
 tests/                       # pytest suite
 ```
