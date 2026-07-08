@@ -2,12 +2,18 @@ import random
 from pathlib import Path
 
 from problemform.eval.engine import (
+    _activate_expected_properties,
     _aggregate,
     _detect_same_family,
     run_benchmark,
 )
 from problemform.eval.judges import ComparativeJudgmentResult
-from problemform.eval.models import TestCase
+from problemform.eval.models import (
+    PropertyCheck,
+    Rubric,
+    RubricCriterion,
+    TestCase,
+)
 
 
 # --- stub providers ---------------------------------------------------------
@@ -91,21 +97,40 @@ class _AnswerStub:
 
 
 class _JudgeStub:
+    """Multi-lens judge stub.
+
+    Since M3B-α.4, a single benchmark run can ask the judge for three kinds of
+    structured output: the M3A comparative verdict (``ComparativeJudgmentResult``),
+    per-criterion rubric scores (a verdict with a ``raw_score`` field), and
+    per-property verdicts (a verdict with a ``holds`` field). This stub dispatches
+    on the requested ``output_model`` so the same judge can serve all three lenses.
+    ``property_holds`` and ``rubric_raw_score`` let tests steer the non-M3A lenses.
+    """
+
     model = "judge-stub-model"
 
-    def __init__(self, winner="b", materiality="material"):
+    def __init__(self, winner="b", materiality="material",
+                 property_holds=True, rubric_raw_score=4):
         self.winner = winner
         self.materiality = materiality
+        self.property_holds = property_holds
+        self.rubric_raw_score = rubric_raw_score
 
     def generate_text(self, *a, **kw):
         return ""
 
     def generate_structured(self, prompt, output_model, **kw):
-        assert output_model is ComparativeJudgmentResult
-        return ComparativeJudgmentResult(
-            winner=self.winner, materiality=self.materiality,
-            rationale="r", key_differences=["d"],
-        )
+        fields = set(output_model.model_fields)
+        if output_model is ComparativeJudgmentResult:
+            return ComparativeJudgmentResult(
+                winner=self.winner, materiality=self.materiality,
+                rationale="r", key_differences=["d"],
+            )
+        if "holds" in fields:      # property-check verdict
+            return output_model(holds=self.property_holds, rationale="r")
+        if "raw_score" in fields:  # rubric-criterion verdict
+            return output_model(raw_score=self.rubric_raw_score, rationale="r")
+        raise AssertionError(f"unexpected output_model: {output_model!r}")
 
 
 class _AlwaysCrash:
@@ -347,3 +372,158 @@ def test_on_progress_emits_case_errored_on_judge_failure(tmp_path: Path):
 
 
 import pytest  # placed at end to avoid noise above
+
+
+# --- M3B-α.4: rubric + property integration ---------------------------------
+
+
+def _formulation_rubric() -> Rubric:
+    return Rubric(
+        name="formq_test",
+        description="test formulation rubric",
+        target="formulation",
+        mode="absolute",
+        criteria=[
+            RubricCriterion(name="clarity", description="is it clear?", weight=1.0,
+                            scoring="graded_5"),
+        ],
+    )
+
+
+def _mixed_property_suite() -> list[PropertyCheck]:
+    return [
+        PropertyCheck(name="form_prop", description="formulation names a claim",
+                      target="formulation", expected=True),
+        PropertyCheck(name="art_prop", description="answer addresses the request",
+                      target="artifact", expected=True),
+    ]
+
+
+def _case_with_props(name="c1") -> TestCase:
+    return TestCase(
+        name=name, category="cat", raw_question="why is the sky blue?",
+        expected_properties=["elicits the observer's altitude", "avoids jargon"],
+    )
+
+
+def test_activate_expected_properties_are_formulation_targeted():
+    """Corpus expected_properties activate as target=formulation, expected=True (option B)."""
+    checks = _activate_expected_properties(_case_with_props())
+    assert [c.target for c in checks] == ["formulation", "formulation"]
+    assert all(c.expected is True for c in checks)
+    # Descriptions preserved verbatim; names are unique, stable slugs.
+    assert [c.description for c in checks] == [
+        "elicits the observer's altitude", "avoids jargon",
+    ]
+    assert len({c.name for c in checks}) == 2
+
+
+def test_rubric_and_property_evaluations_populate_and_aggregate(tmp_path: Path):
+    report = run_benchmark(
+        [_case_with_props("cA")],
+        pf_provider=_PFStub(),
+        answer_provider=_AnswerStub(),
+        judge_provider=_JudgeStub(property_holds=True, rubric_raw_score=4),
+        output_dir=tmp_path,
+        max_iterations=1,
+        rubrics=[_formulation_rubric()],
+        property_suites=_mixed_property_suite(),
+        rng=random.Random(0),
+    )
+    r = report.test_case_results[0]
+
+    # Rubric ran against both formulation subjects (raw + refined).
+    assert {e.subject for e in r.rubric_evaluations} == {"raw", "refined"}
+    assert all(e.rubric_name == "formq_test" for e in r.rubric_evaluations)
+
+    # Property results include: shared suite (form + artifact) and the two
+    # activated expected_properties (formulation), each for raw + refined.
+    names = {p.property_name for p in r.property_check_results}
+    assert {"form_prop", "art_prop"} <= names
+    activated = [p for p in r.property_check_results if p.property_name not in
+                 {"form_prop", "art_prop"}]
+    assert activated and all(p.target == "formulation" for p in activated)
+
+    # Aggregates present and lens-separated on the report.
+    assert "formq_test" in report.aggregate_rubrics
+    assert report.aggregate_rubrics["formq_test"].mean_delta is not None
+    assert {"form_prop", "art_prop"} <= set(report.aggregate_properties)
+    assert report.aggregate_properties["form_prop"].refined_pass_rate == 1.0
+
+    # M3A lens untouched: the case still completes.
+    assert report.aggregate.n_completed == 1
+
+
+def test_rubric_delta_reflects_raw_vs_refined_scores(tmp_path: Path):
+    """A judge that scores the refined formulation higher yields a positive delta."""
+
+    class _ScoringJudge:
+        model = "scoring-judge"
+
+        def generate_text(self, *a, **kw):
+            return ""
+
+        def generate_structured(self, prompt, output_model, **kw):
+            fields = set(output_model.model_fields)
+            if output_model is ComparativeJudgmentResult:
+                return ComparativeJudgmentResult(
+                    winner="b", materiality="material", rationale="r",
+                    key_differences=[])
+            if "holds" in fields:
+                return output_model(holds=True, rationale="r")
+            # Refined formulation subject is "REFINED_PROMPT" (from _PFStub).
+            score = 4 if "REFINED_PROMPT" in prompt else 2
+            return output_model(raw_score=score, rationale="r")
+
+    report = run_benchmark(
+        [_case("cD")],
+        pf_provider=_PFStub(),
+        answer_provider=_AnswerStub(),
+        judge_provider=_ScoringJudge(),
+        output_dir=tmp_path,
+        max_iterations=1,
+        rubrics=[_formulation_rubric()],
+        rng=random.Random(0),
+    )
+    agg = report.aggregate_rubrics["formq_test"]
+    # raw: graded_5 score 2 -> 0.5 ; refined: score 4 -> 1.0 ; delta 0.5.
+    assert agg.raw_mean_aggregate == pytest.approx(0.5)
+    assert agg.refined_mean_aggregate == pytest.approx(1.0)
+    assert agg.mean_delta == pytest.approx(0.5)
+
+
+def test_rubric_failure_does_not_drop_m3a_completion(tmp_path: Path):
+    """A failing rubric lens records an error but leaves the M3A verdict intact."""
+
+    class _RubricFailingJudge:
+        model = "rubric-failing-judge"
+
+        def generate_text(self, *a, **kw):
+            return ""
+
+        def generate_structured(self, prompt, output_model, **kw):
+            fields = set(output_model.model_fields)
+            if output_model is ComparativeJudgmentResult:
+                return ComparativeJudgmentResult(
+                    winner="b", materiality="material", rationale="r",
+                    key_differences=[])
+            if "raw_score" in fields:
+                raise RuntimeError("rubric judge boom")
+            return output_model(holds=True, rationale="r")
+
+    report = run_benchmark(
+        [_case("cF")],  # no expected_properties: isolate the rubric failure
+        pf_provider=_PFStub(),
+        answer_provider=_AnswerStub(),
+        judge_provider=_RubricFailingJudge(),
+        output_dir=tmp_path,
+        max_iterations=1,
+        rubrics=[_formulation_rubric()],
+        rng=random.Random(0),
+    )
+    r = report.test_case_results[0]
+    assert any("rubric" in m for m in r.errors)          # failure recorded
+    assert r.rubric_evaluations == []                    # nothing scored
+    assert r.comparative_judgment is not None             # M3A lens intact
+    assert report.aggregate.n_completed == 1              # not dropped
+    assert report.aggregate.n_errored == 0

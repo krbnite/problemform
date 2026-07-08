@@ -84,20 +84,36 @@ def test_benchmark_continues_on_judge_failure(runner, monkeypatch, tmp_path: Pat
     answer = _AnswerStub()
 
     class _PartiallyFailingJudge:
-        calls = 0
+        """Fails the 2nd *comparative* judgment; answers all other lenses.
+
+        Since α.4 also drives property checks off each case's expected_properties,
+        the judge receives property verdicts interleaved with comparative ones.
+        We count only comparative calls so the injected failure lands on a
+        specific case's answer judgment (case #2), independent of how many
+        property calls precede it.
+        """
+
+        comparative_calls = 0
         model = "claude-test"
 
         def generate_text(self, *a, **kw):
             return ""
 
         def generate_structured(self, prompt, output_model, **kw):
-            _PartiallyFailingJudge.calls += 1
-            if _PartiallyFailingJudge.calls == 2:
-                raise RuntimeError("intermittent judge error")
-            return ComparativeJudgmentResult(
-                winner="b", materiality="material",
-                rationale="r", key_differences=[],
-            )
+            fields = set(output_model.model_fields)
+            if output_model is ComparativeJudgmentResult:
+                _PartiallyFailingJudge.comparative_calls += 1
+                if _PartiallyFailingJudge.comparative_calls == 2:
+                    raise RuntimeError("intermittent judge error")
+                return ComparativeJudgmentResult(
+                    winner="b", materiality="material",
+                    rationale="r", key_differences=[],
+                )
+            if "holds" in fields:
+                return output_model(holds=True, rationale="r")
+            if "raw_score" in fields:
+                return output_model(raw_score=4, rationale="r")
+            raise AssertionError(f"unexpected output_model: {output_model!r}")
 
     queue = [pf, answer, _PartiallyFailingJudge()]
     monkeypatch.setattr(cli_module, "make_provider", lambda *a, **kw: queue.pop(0))

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import random
+import re
 import time
 from collections.abc import Callable
 from datetime import datetime, timezone
@@ -31,12 +32,21 @@ from problemform.core.language_models import LLMProvider
 from problemform.core.workflow import run as pf_run
 from problemform.eval.judges import judge_answers
 from problemform.eval.models import (
+    AbsoluteRubricEvaluation,
     AggregateMetrics,
     AggregateRuntime,
     BenchmarkReport,
+    EvalTarget,
+    PropertyAggregate,
+    PropertyCheck,
+    PropertyCheckResult,
+    Rubric,
+    RubricAggregate,
     TestCase,
     TestCaseResult,
 )
+from problemform.eval.property_runner import run_property_check
+from problemform.eval.rubric_runner import run_rubric
 
 
 ProgressEventKind = Literal[
@@ -53,6 +63,8 @@ ProgressStep = Literal[
     "raw_answer",
     "refined_answer",
     "comparative_judge",
+    "rubric_eval",
+    "property_check",
 ]
 
 
@@ -107,6 +119,78 @@ def _detect_same_family(answer_provider_name: str, answer_model: str,
     )
 
 
+# --- M3B: rubric + property evaluation helpers ---------------------------
+#
+# α.4 wires the α.3 runners into the per-case pipeline. The three lenses (M3A
+# comparative answer judgment, rubric evaluations, property checks) stay
+# parallel: rubric/property failures are captured per-case but never collapse
+# into the M3A verdict or into a single combined score. See
+# docs/plans/m3b_alpha_4_doc01_plan_by_claude.md.
+
+# Subject text keyed by evaluation target. Each value is (raw_text, refined_text).
+Subjects = dict[EvalTarget, tuple[str, str]]
+
+
+def _slug(text: str, index: int, maxlen: int = 40) -> str:
+    """Derive a stable, unique property name from a free-text property string.
+
+    Lowercases, collapses non-alphanumerics to underscores, truncates, and
+    appends the source index so two differently-worded strings never collide.
+    """
+    base = re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")[:maxlen].rstrip("_")
+    return f"{base}_{index}" if base else f"expected_property_{index}"
+
+
+def _activate_expected_properties(case: TestCase) -> list[PropertyCheck]:
+    """Activate ``TestCase.expected_properties`` as runnable property checks.
+
+    M3B-α.4 decision (option B): the current corpus ``expected_properties`` are
+    predominantly formulation-shaped ("elicits the child's age", "surfaces
+    latent constraints"), so each activates as ``target=formulation,
+    expected=True`` — evaluated against the formulation, not the answer.
+    Artifact-target coverage is retained by shared suites (e.g.
+    ``artifact_baseline_v1``). See docs/plans/m3b_alpha_4_doc01_plan_by_claude.md
+    item 4 and the design-doc amendment tracked in docs/backlog.md.
+    """
+    return [
+        PropertyCheck(
+            name=_slug(s, i),
+            description=s,
+            target="formulation",
+            expected=True,
+        )
+        for i, s in enumerate(case.expected_properties)
+    ]
+
+
+def _run_rubric_both_subjects(
+    rubric: Rubric, subjects: Subjects, judge_provider: LLMProvider
+) -> list[AbsoluteRubricEvaluation]:
+    """Score ``rubric`` against its target's raw and refined subjects.
+
+    Skips a subject whose text is empty (e.g. an artifact-target rubric when
+    answer generation failed) rather than judging an empty string.
+    """
+    raw_text, refined_text = subjects[rubric.target]
+    out: list[AbsoluteRubricEvaluation] = []
+    for label, text in (("raw", raw_text), ("refined", refined_text)):
+        if text:
+            out.append(run_rubric(rubric, text, label, judge_provider))
+    return out
+
+
+def _run_property_both_subjects(
+    prop: PropertyCheck, subjects: Subjects, judge_provider: LLMProvider
+) -> list[PropertyCheckResult]:
+    """Evaluate ``prop`` against its target's raw and refined subjects."""
+    raw_text, refined_text = subjects[prop.target]
+    out: list[PropertyCheckResult] = []
+    for label, text in (("raw", raw_text), ("refined", refined_text)):
+        if text:
+            out.append(run_property_check(prop, text, label, judge_provider))
+    return out
+
+
 def _run_one_case(
     case: TestCase,
     pf_provider: LLMProvider,
@@ -116,6 +200,8 @@ def _run_one_case(
     max_iterations: int,
     case_dir: Path,
     rng: random.Random,
+    rubrics: list[Rubric] | None = None,
+    property_suites: list[PropertyCheck] | None = None,
     case_index: int = 0,
     total: int = 1,
     on_progress: OnProgress | None = None,
@@ -182,6 +268,48 @@ def _run_one_case(
         except Exception as exc:
             errors.append(f"judge failed: {type(exc).__name__}: {exc}")
 
+    # --- M3B rubric + property lenses ---
+    # Run independently of the M3A judge gate: formulation-target evaluation
+    # only needs the prompts (available even if answer generation failed);
+    # artifact-target evaluation is skipped per-subject when its answer is
+    # empty. A rubric/property failure is recorded but does not invalidate the
+    # M3A verdict (see _aggregate).
+    rubric_evaluations: list[AbsoluteRubricEvaluation] = []
+    property_check_results: list[PropertyCheckResult] = []
+    subjects: Subjects = {
+        "formulation": (case.raw_question, refined_prompt),
+        "artifact": (raw_answer, refined_answer),
+    }
+    active_properties = list(property_suites or []) + _activate_expected_properties(case)
+
+    if rubrics:
+        _emit("step", step="rubric_eval")
+        t0 = time.time()
+        for rubric in rubrics:
+            try:
+                rubric_evaluations.extend(
+                    _run_rubric_both_subjects(rubric, subjects, judge_provider)
+                )
+            except Exception as exc:
+                errors.append(
+                    f"rubric {rubric.name!r} failed: {type(exc).__name__}: {exc}"
+                )
+        timing["rubric"] = time.time() - t0
+
+    if active_properties:
+        _emit("step", step="property_check")
+        t0 = time.time()
+        for prop in active_properties:
+            try:
+                property_check_results.extend(
+                    _run_property_both_subjects(prop, subjects, judge_provider)
+                )
+            except Exception as exc:
+                errors.append(
+                    f"property {prop.name!r} failed: {type(exc).__name__}: {exc}"
+                )
+        timing["property"] = time.time() - t0
+
     _emit("case_errored" if errors else "case_done")
 
     return TestCaseResult(
@@ -194,6 +322,8 @@ def _run_one_case(
         comparative_judgment=judgment,
         errors=errors,
         timing=timing,
+        rubric_evaluations=rubric_evaluations,
+        property_check_results=property_check_results,
     )
 
 
@@ -219,7 +349,12 @@ def _aggregate_runtime(results: list[TestCaseResult]) -> AggregateRuntime:
 
 def _aggregate(results: list[TestCaseResult]) -> AggregateMetrics:
     n_cases = len(results)
-    completed = [r for r in results if r.comparative_judgment is not None and not r.errors]
+    # M3A completion is gated on the comparative judgment alone, NOT on
+    # ``r.errors``. The judge only runs when the PF/answer steps succeeded, so a
+    # present judgment already implies those steps were clean. Rubric/property
+    # lens failures (which append to ``errors`` afterward) must not retroactively
+    # drop a case from the M3A scoreboard — the three lenses are independent.
+    completed = [r for r in results if r.comparative_judgment is not None]
     n_completed = len(completed)
     n_errored = n_cases - n_completed
 
@@ -255,6 +390,76 @@ def _aggregate(results: list[TestCaseResult]) -> AggregateMetrics:
     )
 
 
+def _mean(xs: list[float]) -> float | None:
+    """Arithmetic mean, or ``None`` for an empty sequence."""
+    return (sum(xs) / len(xs)) if xs else None
+
+
+def _aggregate_rubrics(results: list[TestCaseResult]) -> dict[str, RubricAggregate]:
+    """Per-rubric raw/refined mean aggregate scores and their delta across cases.
+
+    Groups every case's ``AbsoluteRubricEvaluation``s by ``rubric_name`` and
+    splits by subject. ``mean_delta`` is ``refined_mean - raw_mean`` when both
+    are present. Aggregation stays per-rubric — never collapsed across rubrics
+    or with the M3A / property lenses.
+    """
+    by_name: dict[str, dict] = {}
+    for r in results:
+        for ev in r.rubric_evaluations:
+            slot = by_name.setdefault(
+                ev.rubric_name, {"raw": [], "refined": [], "target": ev.target}
+            )
+            slot[ev.subject].append(ev.aggregate_score)
+
+    out: dict[str, RubricAggregate] = {}
+    for name, slot in by_name.items():
+        raw_mean = _mean(slot["raw"])
+        refined_mean = _mean(slot["refined"])
+        delta = (
+            refined_mean - raw_mean
+            if raw_mean is not None and refined_mean is not None
+            else None
+        )
+        out[name] = RubricAggregate(
+            rubric_name=name,
+            target=slot["target"],
+            n_cases=max(len(slot["raw"]), len(slot["refined"])),
+            raw_mean_aggregate=raw_mean,
+            refined_mean_aggregate=refined_mean,
+            mean_delta=delta,
+        )
+    return out
+
+
+def _aggregate_properties(results: list[TestCaseResult]) -> dict[str, PropertyAggregate]:
+    """Per-property raw/refined pass rates across cases.
+
+    Groups every case's ``PropertyCheckResult``s by ``property_name`` and splits
+    by subject. Shared-suite properties (same name across cases) aggregate across
+    cases; per-case activated ``expected_properties`` carry case-unique names and
+    therefore aggregate over their single case. No weighted "overall property
+    score" — each property is independently meaningful.
+    """
+    by_name: dict[str, dict] = {}
+    for r in results:
+        for pr in r.property_check_results:
+            slot = by_name.setdefault(
+                pr.property_name, {"raw": [], "refined": [], "target": pr.target}
+            )
+            slot[pr.subject].append(1.0 if pr.passed else 0.0)
+
+    out: dict[str, PropertyAggregate] = {}
+    for name, slot in by_name.items():
+        out[name] = PropertyAggregate(
+            property_name=name,
+            target=slot["target"],
+            n_applied=max(len(slot["raw"]), len(slot["refined"])),
+            raw_pass_rate=_mean(slot["raw"]),
+            refined_pass_rate=_mean(slot["refined"]),
+        )
+    return out
+
+
 def run_benchmark(
     cases: list[TestCase],
     pf_provider: LLMProvider,
@@ -263,6 +468,8 @@ def run_benchmark(
     *,
     output_dir: Path,
     max_iterations: int = 1,
+    rubrics: list[Rubric] | None = None,
+    property_suites: list[PropertyCheck] | None = None,
     config: dict | None = None,
     bias_warnings: list[str] | None = None,
     rng: random.Random | None = None,
@@ -301,6 +508,8 @@ def run_benchmark(
             max_iterations=max_iterations,
             case_dir=case_dir,
             rng=rng,
+            rubrics=rubrics,
+            property_suites=property_suites,
             case_index=i,
             total=total,
             on_progress=on_progress,
@@ -320,4 +529,6 @@ def run_benchmark(
         test_case_results=results,
         aggregate=_aggregate(results),
         aggregate_runtime=_aggregate_runtime(results),
+        aggregate_rubrics=_aggregate_rubrics(results),
+        aggregate_properties=_aggregate_properties(results),
     )

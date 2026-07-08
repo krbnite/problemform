@@ -266,6 +266,26 @@ Recommended direction: keep prompt-delta as the always-on, primary convergence s
 
 ---
 
+## Documentation cleanup queue: `expected_properties` target default (post-α.4)
+
+### Problem
+
+M3B-α.4 activates `TestCase.expected_properties` as **`target=formulation`, `expected=True`** property checks (see `docs/plans/m3b_alpha_4_doc01_plan_by_claude.md`, item 4, resolved as option B). This is an implementation correction grounded in corpus reality: the current corpus `expected_properties` are predominantly formulation-shaped (e.g. "elicits the child's age", "surfaces latent constraints", "disambiguates the multiple meanings of 'nothing'"), though a few are mixed or answer-readable (notably the control case `what_causes_eclipses`). Formulation-target activation produces coherent signal on the current corpus and aligns with the M3B bridge goal; artifact-target coverage is not lost because `artifact_baseline_v1` provides genuine `target=artifact` checks.
+
+Several docs still carry the **older `target=artifact` default** for `expected_properties` and now contradict the shipped α.4 behavior. These are documentation-only corrections; they do not block α.4 code, but they should be reconciled before the M3B-α validation experiments (that is when the documentation-vs-reality question actually matters, since the findings doc references whichever description is authoritative).
+
+### Items to reconcile
+
+1. **M3B design doc** — `docs/designs/milestone_03b_rubrics_and_properties.md`, "Activation of `TestCase.expected_properties`" section, states each string "is interpreted as a `target=artifact, expected=True` property check by default". Amend to record the α.4 deviation: formulation-target is the α.4 default for the current corpus, with the careful phrasing above (predominantly formulation-shaped; a few mixed/answer-readable; artifact coverage retained via `artifact_baseline_v1`). Amend rather than silently overwrite, preserving the original design intent as history.
+2. **`benchmarks/properties/README.md`** — stale language on two counts: (a) the "Target axis" section says `target: artifact` "covers the `TestCase.expected_properties` strings that ship with the M3A corpus (M3B-α.2 will activate these…)" — both the artifact-default claim and the α.2 activation-phase claim are now wrong; (b) the "Per-case vs shared properties" section says each `expected_properties` string "would be interpreted as a `target=artifact, expected=True` property check." Update both to formulation-target and correct the activation phase to α.4.
+3. **`docs/backlog.md`** — the "Property Check Framework Design (M3B)" entry above states `expected_properties` "activates as `target=artifact` property checks". Update to formulation-target with a pointer to the α.4 decision. (That same entry also lists a `formulation_properties` field on `TestCase` as design intent; note it remains deferred to M3B-β and is not added in α.4.)
+
+### Status
+
+Deferred. Open this after α.4 code lands and before the M3B-α validation experiments. Tracked here so the documentation-vs-reality drift is not lost.
+
+---
+
 ## Resolved
 
 - **Benchmark Progress & Runtime Visibility** — implemented in commit `eb894c4` ("Add benchmark progress visibility"); GitHub issue [#3](https://github.com/krbnite/problemform/issues/3) closed. `benchmark` now renders a live Rich progress bar (M/N cases, current case + step, elapsed, ETA), prints per-step breadcrumb lines and case-completion lines for scrollback durability, and emits a per-case timing breakdown table on completion. All progress output goes to stderr; stdout remains usable for `--format json` piping.
