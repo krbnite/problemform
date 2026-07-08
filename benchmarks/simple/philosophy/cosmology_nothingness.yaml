@@ -1,0 +1,19 @@
+schema_version: 1
+name: cosmology_nothingness
+category: philosophy
+tags:
+  - cosmology
+  - metaphysics
+  - disambiguation
+raw_question: >
+  If someone posits that the universe spontaneously manifested into existence
+  from nothingness, what is the strongest response?
+expected_properties:
+  - disambiguates the multiple meanings of "nothing"
+  - separates semantic from metaphysical claims
+  - identifies hidden assumptions in the prompt
+  - avoids assuming the conclusion
+notes: |
+  This case tests whether ProblemForm encourages clarification before critique.
+  A good refined prompt should foreground the ambiguity of "nothingness" and
+  request the questioner's stance before launching a refutation.
