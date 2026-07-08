@@ -302,6 +302,23 @@ Introduce per-lens error accounting so the report can distinguish M3A pipeline e
 
 ---
 
+## Bug: AnthropicProvider sends `system` as a string; API expects an array
+
+### Problem
+
+Discovered during the M3B-α **H1** validation run (2026-07-08): every Anthropic call fails with `400 invalid_request_error: system: Input should be a valid array`. `AnthropicProvider` (`problemform/core/language_models.py`) passes the system prompt as a plain string, but the installed Anthropic SDK / API version expects `system` as an array of content blocks. This makes the Anthropic provider unusable in the current environment.
+
+### Impact
+
+- H1 was run OpenAI-only. This did not invalidate H1 (it does not need Anthropic), so the provider was **not** modified during that task per instruction.
+- It **blocks cross-family judging** — the recommended bias mitigation for the comparative answer judge and for future comparative-mode rubrics. H2 and any calibration (#7) work that wants a cross-family judge are gated on this fix.
+
+### Fix direction
+
+Send `system` in the shape the SDK expects (either a bare string on a compatible SDK version, or `[{"type": "text", "text": <system>}]`), and add a provider test that exercises a real-shaped request against the installed SDK's types. Verify against `claude-sonnet-4-6` / `claude-haiku-4-5`. See [`docs/reports/m3b_alpha_validation_2026-07-08.md`](reports/m3b_alpha_validation_2026-07-08.md) *Environment caveats*.
+
+---
+
 ## Resolved
 
 - **Benchmark Progress & Runtime Visibility** — implemented in commit `eb894c4` ("Add benchmark progress visibility"); GitHub issue [#3](https://github.com/krbnite/problemform/issues/3) closed. `benchmark` now renders a live Rich progress bar (M/N cases, current case + step, elapsed, ETA), prints per-step breadcrumb lines and case-completion lines for scrollback durability, and emits a per-case timing breakdown table on completion. All progress output goes to stderr; stdout remains usable for `--format json` piping.
