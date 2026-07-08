@@ -37,8 +37,8 @@ Both forms produce a flat `list[PropertyCheck]`; directories aggregate every fil
 
 ## Target axis
 
-- **`target: artifact`** — the property is asserted about a downstream answer. Today this covers the `TestCase.expected_properties` strings that ship with the M3A corpus (M3B-α.2 will activate these as runnable assertions).
-- **`target: formulation`** — the property is asserted about the formulation itself. Category-agnostic; usable on non-question inputs once corpus diversification (M3B-β) lands.
+- **`target: artifact`** — the property is asserted about a downstream answer. The shipped [`artifact_baseline_v1.yaml`](artifact_baseline_v1.yaml) suite is the reference example.
+- **`target: formulation`** — the property is asserted about the formulation itself. Category-agnostic; usable on non-question inputs once corpus diversification (M3B-β) lands. Since **M3B-α.4**, each case's `TestCase.expected_properties` strings activate as `target=formulation` checks (see below).
 
 ## Expected polarity
 
@@ -54,8 +54,8 @@ A `PropertyCheckResult` records:
 
 M3B-α property checks come from two sources:
 
-1. **Per-case `TestCase.expected_properties`** (existing field). Each string would be interpreted as a `target=artifact, expected=True` property check applied only to its case. Activation (running these as live assertions) lands in **M3B-α.3 / α.4**, not α.2.
-2. **Shared suites under this directory**, applied across cases. The shipped seed suite is [`artifact_baseline_v1.yaml`](artifact_baseline_v1.yaml). The `--property-suite <path>` CLI flag that selects suites at run time also lands in α.4.
+1. **Per-case `TestCase.expected_properties`** (existing field). Since **M3B-α.4** each string activates as a `target=formulation, expected=True` property check applied only to its case, evaluated against that case's raw and refined formulation. (The original design intended `target=artifact`; a corpus review found the shipped strings are predominantly formulation-shaped — see the "Activation of `TestCase.expected_properties`" amendment in [the design doc](../../docs/designs/milestone_03b_rubrics_and_properties.md). Artifact-target coverage is retained by shared suites like `artifact_baseline_v1`.)
+2. **Shared suites under this directory**, applied across cases. The shipped seed suite is [`artifact_baseline_v1.yaml`](artifact_baseline_v1.yaml). The repeatable `--property-suite <path>` CLI flag selects suites at run time (M3B-α.4); with no flag, this directory is default-loaded.
 
 Per-case formulation-target properties — i.e. a `formulation_properties` field on `TestCase` — are deferred to M3B-β corpus diversification. Until then, formulation-target assertions belong in shared suites here.
 
@@ -63,4 +63,4 @@ Per-case formulation-target properties — i.e. a `formulation_properties` field
 
 - [`artifact_baseline_v1.yaml`](artifact_baseline_v1.yaml) — four baseline artifact-target binary assertions (`addresses_stated_request`, `no_unnecessary_refusal`, `no_obvious_unsupported_facts`, `respectful_tone`).
 
-This is **data only**. Property-check execution (running these against an artifact via an LLM judge) lands in **M3B-α.3** along with the rubric runner; engine integration, aggregation, reporting, and the `--property-suite` CLI flag land in **M3B-α.4**. Parse-only loader tests in [`tests/test_eval_corpus.py`](../../tests/test_eval_corpus.py) prove the YAML file validates against the schema today.
+This suite shipped as data in α.2. Property-check execution (running these against a subject via an LLM judge) landed in **M3B-α.3** along with the rubric runner; engine integration, aggregation, reporting, and the `--property-suite` CLI flag landed in **M3B-α.4**. Loader tests live in [`tests/test_eval_corpus.py`](../../tests/test_eval_corpus.py); runner and integration tests in `tests/test_eval_property_runner.py`, `tests/test_eval_engine.py`, and `tests/test_eval_cli.py`.

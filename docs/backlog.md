@@ -200,8 +200,8 @@ The design pass has completed; see [`docs/designs/milestone_03b_rubrics_and_prop
 * Property specification format (`PropertyCheck` Pydantic model, with target + description + expected polarity).
 * Properties are binary, not graded (graded-and-weighted use cases route to rubrics).
 * Both per-case and shared (corpus-wide via `benchmarks/properties/`) property suites supported.
-* Existing `TestCase.expected_properties` field activates as `target=artifact` property checks (retrofitting the M3A corpus from documentation to test).
-* New `formulation_properties` field on `TestCase` for `target=formulation` properties.
+* Existing `TestCase.expected_properties` field activates as property checks (retrofitting the M3A corpus from documentation to test). *Design originally specified `target=artifact`; M3B-α.4 activates them as `target=formulation` instead, because the shipped corpus strings are predominantly formulation-shaped — see the [design-doc amendment](designs/milestone_03b_rubrics_and_properties.md) and the cleanup-queue entry below.*
+* New `formulation_properties` field on `TestCase` for `target=formulation` properties. *Deferred to M3B-β; not added in α.4 (α.4 covers per-case formulation properties via `expected_properties` activation instead).*
 * Reporting: `## Property checks` section in `report.md`, with per-property pass rate and per-case compliance.
 
 Designed in tandem with the rubric framework rather than in isolation; the two share the `target` axis but diverge on output type and use case (rubrics for graded quality measurement, properties for binary regression assertion).
@@ -282,7 +282,7 @@ Several docs still carry the **older `target=artifact` default** for `expected_p
 
 ### Status
 
-Deferred. Open this after α.4 code lands and before the M3B-α validation experiments. Tracked here so the documentation-vs-reality drift is not lost.
+**Resolved (2026-07-08).** All three items reconciled after α.4 landed: the design-doc "Activation of `TestCase.expected_properties`" section carries an amendment noting the formulation-target change; `benchmarks/properties/README.md` (Target axis + Per-case-vs-shared sections + phase tenses) updated; and the "Property Check Framework Design (M3B)" backlog entry above now points at the α.4 decision and marks `formulation_properties` deferred to M3B-β.
 
 ---
 

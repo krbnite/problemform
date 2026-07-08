@@ -3,7 +3,7 @@ title: "Milestone 3B design reference: rubrics, property checks, and the formula
 document_type: "design"
 status: "active"
 created: "2026-06-05"
-updated: "2026-06-05"
+updated: "2026-07-08"
 author: "Claude Code"
 authoritative_reference: "docs/problemform_constitution.md"
 related:
@@ -196,9 +196,11 @@ Property checks operate only in absolute mode. Comparative-mode binary judgments
 
 ### Activation of `TestCase.expected_properties`
 
-The existing `TestCase.expected_properties: list[str]` field has carried hand-written property strings since M3A but has been "stored but not evaluated." M3B activates it. Each string is interpreted as a `target=artifact, expected=True` property check by default — the historical M3A interpretation. New per-case `formulation_properties: list[str]` (`target=formulation`) and shared property suites under `benchmarks/properties/` extend this.
+The existing `TestCase.expected_properties: list[str]` field has carried hand-written property strings since M3A but has been "stored but not evaluated." M3B activates it. The original design intent (below) interpreted each string as a `target=artifact, expected=True` property check by default — the historical M3A interpretation. New per-case `formulation_properties: list[str]` (`target=formulation`) and shared property suites under `benchmarks/properties/` extend this.
 
 The M3A test cases gain immediate signal from this activation: the existing four `expected_properties` lines per case become four runnable property checks per case, retrofitted from documentation to test.
+
+> **Amendment (M3B-α.4, 2026-07-08 — activation target changed to `formulation`).** When α.4 came to activate this field, a corpus review found the shipped `expected_properties` strings are *predominantly formulation-shaped* — they describe what the refined formulation should surface or preserve ("elicits the child's age", "surfaces latent constraints", "disambiguates the multiple meanings of 'nothing'"), not what a downstream answer should do — though a few are mixed or answer-readable (notably the control case `what_causes_eclipses`). Because the property-judge prompt is target-aware (it asks about the *answer* under `target=artifact` and about the *formulation* under `target=formulation`), activating these as artifact checks would ask the judge nonsensical questions and produce incoherent results on the current corpus. **α.4 therefore activates `expected_properties` as `target=formulation, expected=True`.** For α.4 this is the cleaner default: it produces coherent signal on the current corpus and aligns with the M3B bridge goal of first-class formulation evaluation. It is an implementation correction grounded in corpus reality, not a redesign. Artifact-target coverage is **not** lost — the shipped `artifact_baseline_v1` suite provides genuine `target=artifact` checks, default-loaded independently. The per-case `formulation_properties` field remains deferred to M3B-β (not added in α.4). Decision trail: `docs/plans/m3b_alpha_4_doc01_plan_by_claude.md` (item 4) and the review chain doc02→doc03→doc04.
 
 ### Aggregation
 
@@ -252,7 +254,7 @@ Smallest version that exercises the bridge hypothesis:
 - New corpus directories: `benchmarks/rubrics/` (rubric YAMLs), `benchmarks/properties/` (shared property suites).
 - New engine module: `problemform/eval/rubric_runner.py`. Runs absolute-mode rubrics against `raw_prompt` and `refined_prompt` (the formulation subjects).
 - New engine module: `problemform/eval/property_runner.py`. Runs property checks against the configured target.
-- Ship the two default rubrics (`formulation_quality_v1`, `answer_quality_v1`) and activate the M3A test cases' existing `expected_properties` as `target=artifact` property checks.
+- Ship the two default rubrics (`formulation_quality_v1`, `answer_quality_v1`) and activate the M3A test cases' existing `expected_properties` as property checks (activated as `target=formulation` in α.4 — see the "Activation of `TestCase.expected_properties`" amendment above).
 - Extend `TestCaseResult` and `BenchmarkReport` with `rubric_evaluations` and `property_check_results` siblings to the existing `comparative_judgment`. Extend `BenchmarkReport` with `aggregate_rubrics` and `aggregate_properties`.
 - Extend `report.md` with `## Rubric evaluations` and `## Property checks` sections between the existing Configuration and Per-case results. The disagreement-diagnostic section described above is part of M3B-α.
 - CLI: extend `benchmark` with `--rubric <path>` (repeatable) and `--property-suite <path>` (repeatable). Default behavior loads the project default rubrics if no flags given.
