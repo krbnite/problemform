@@ -127,3 +127,45 @@ def test_benchmark_continues_on_judge_failure(runner, monkeypatch, tmp_path: Pat
     assert report.aggregate.n_cases == 5
     assert report.aggregate.n_errored == 1
     assert report.aggregate.n_completed == 4
+
+
+def test_benchmark_loads_default_rubrics_and_properties(runner, monkeypatch, tmp_path: Path):
+    """With no --rubric/--property-suite, the shipped defaults load and run."""
+    _install_three_role_stubs(monkeypatch)
+    result = runner.invoke(
+        app,
+        ["benchmark", str(SUITE), "--output", str(tmp_path / "run"), "--format", "json"],
+    )
+    assert result.exit_code == 0, result.stderr
+    report = BenchmarkReport.model_validate_json((tmp_path / "run" / "report.json").read_text())
+    # Both default rubrics ran.
+    assert {"formulation_quality_v1", "answer_quality_v1"} <= set(report.aggregate_rubrics)
+    # Default artifact suite ran, plus per-case expected_properties activation.
+    assert "addresses_stated_request" in report.aggregate_properties
+    assert len(report.aggregate_properties) > 4  # 4 shared + activated per-case
+
+
+def test_benchmark_explicit_rubric_overrides_defaults(runner, monkeypatch, tmp_path: Path):
+    """An explicit --rubric replaces the default rubric set entirely."""
+    _install_three_role_stubs(monkeypatch)
+    custom = tmp_path / "custom_rubric.yaml"
+    custom.write_text(
+        "name: custom_rubric_x\n"
+        "description: test\n"
+        "target: formulation\n"
+        "mode: absolute\n"
+        "criteria:\n"
+        "  - name: c\n"
+        "    description: d\n"
+        "    weight: 1.0\n"
+        "    scoring: graded_5\n"
+    )
+    result = runner.invoke(
+        app,
+        ["benchmark", str(SUITE), "--output", str(tmp_path / "run"),
+         "--rubric", str(custom), "--format", "json"],
+    )
+    assert result.exit_code == 0, result.stderr
+    report = BenchmarkReport.model_validate_json((tmp_path / "run" / "report.json").read_text())
+    assert set(report.aggregate_rubrics) == {"custom_rubric_x"}
+    assert "formulation_quality_v1" not in report.aggregate_rubrics

@@ -2,9 +2,28 @@ from datetime import datetime
 from pathlib import Path
 
 from problemform.eval.models import (
-    AggregateMetrics, BenchmarkReport, ComparativeJudgment, TestCase, TestCaseResult,
+    AbsoluteRubricEvaluation, AggregateMetrics, BenchmarkReport, ComparativeJudgment,
+    CriterionScore, PropertyAggregate, RubricAggregate, TestCase, TestCaseResult,
 )
 from problemform.eval.report import render_markdown, write_run
+
+
+def _one_completed_agg() -> AggregateMetrics:
+    return AggregateMetrics(
+        n_cases=1, n_completed=1, n_errored=0,
+        n_refined_wins=1, n_raw_wins=0, n_ties=0,
+        refined_win_rate=1.0, raw_win_rate=0.0, tie_rate=0.0,
+        material_improvement_rate=1.0, degradation_rate=0.0,
+    )
+
+
+def _abs_eval(rubric_name, subject, score, target="formulation"):
+    return AbsoluteRubricEvaluation(
+        rubric_name=rubric_name, target=target, subject=subject,
+        criterion_scores=[CriterionScore(criterion_name="c", score=score,
+                                         raw_score=int(round(score * 4)), rationale="r")],
+        aggregate_score=score,
+    )
 
 
 def _judgment(winner_actual="refined", materiality="material"):
@@ -192,3 +211,86 @@ def test_format_seconds_formats_under_and_over_one_minute():
     assert format_seconds(42.7) == "42.7s"
     assert format_seconds(60.0) == "1m 00s"
     assert format_seconds(552.0) == "9m 12s"
+
+
+# --- M3B-α.4 report sections -------------------------------------------------
+
+
+def test_rubric_and_property_sections_render_with_values():
+    report = _report([_result("c1", "philosophy", judgment=_judgment())],
+                     _one_completed_agg())
+    report = report.model_copy(update={
+        "aggregate_rubrics": {
+            "formulation_quality_v1": RubricAggregate(
+                rubric_name="formulation_quality_v1", target="formulation",
+                n_cases=1, raw_mean_aggregate=0.50, refined_mean_aggregate=0.80,
+                mean_delta=0.30),
+        },
+        "aggregate_properties": {
+            "addresses_stated_request": PropertyAggregate(
+                property_name="addresses_stated_request", target="artifact",
+                n_applied=1, raw_pass_rate=1.0, refined_pass_rate=1.0),
+        },
+    })
+    md = render_markdown(report)
+    assert "## Rubric evaluations" in md
+    assert "## Property checks" in md
+    assert "## Disagreement diagnostic" in md
+    # Rubric row values render (raw/refined means + signed delta).
+    assert "formulation_quality_v1" in md
+    assert "0.50" in md and "0.80" in md and "+0.30" in md
+    # Property pass rate renders as a percentage.
+    assert "addresses_stated_request" in md and "100%" in md
+    # Lenses stay separate: three distinct section headers, no merged score.
+    assert md.index("## Rubric evaluations") < md.index("## Property checks")
+    assert md.index("## Property checks") < md.index("## Disagreement diagnostic")
+    # New sections sit between Runtime and Per-case results.
+    assert md.index("## Rubric evaluations") < md.index("## Per-case results")
+
+
+def test_rubric_property_sections_empty_when_absent():
+    md = render_markdown(_report([_result("c1", "philosophy", judgment=_judgment())],
+                                 _one_completed_agg()))
+    assert "_No rubrics applied in this run._" in md
+    assert "_No property checks applied in this run._" in md
+
+
+def _case_with_formulation_eval(name, judgment, raw_score, refined_score):
+    return TestCaseResult(
+        test_case=TestCase(name=name, category="cat", raw_question="q"),
+        raw_prompt="q", refined_prompt="q-refined",
+        raw_answer="RAW", refined_answer="REFINED",
+        comparative_judgment=judgment,
+        rubric_evaluations=[
+            _abs_eval("formulation_quality_v1", "raw", raw_score),
+            _abs_eval("formulation_quality_v1", "refined", refined_score),
+        ],
+    )
+
+
+def test_disagreement_flags_material_answer_win_with_flat_formulation():
+    """P2: M3A says refined material-win, but the formulation barely moved."""
+    j = _judgment(winner_actual="refined", materiality="material")
+    case = _case_with_formulation_eval("c1", j, raw_score=0.80, refined_score=0.82)  # Δ=+0.02
+    md = render_markdown(_report([case], _one_completed_agg()))
+    assert "_No disagreements flagged in this run._" not in md
+    assert "P2" in md
+    assert "`c1`" not in md  # rendered in a table cell without backticks
+    assert "c1" in md
+    assert "+0.02" in md
+
+
+def test_disagreement_none_when_lenses_agree():
+    """Large formulation gain accompanying a material answer win is not a disagreement."""
+    j = _judgment(winner_actual="refined", materiality="material")
+    case = _case_with_formulation_eval("c1", j, raw_score=0.50, refined_score=0.90)  # Δ=+0.40
+    md = render_markdown(_report([case], _one_completed_agg()))
+    assert "_No disagreements flagged in this run._" in md
+
+
+def test_disagreement_flags_tie_with_large_formulation_gain():
+    """P3: M3A ties on the answer, but the formulation improved a lot."""
+    j = _judgment(winner_actual="tie", materiality="stylistic_only")
+    case = _case_with_formulation_eval("c1", j, raw_score=0.40, refined_score=0.80)  # Δ=+0.40
+    md = render_markdown(_report([case], _one_completed_agg()))
+    assert "P3" in md

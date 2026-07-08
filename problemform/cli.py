@@ -331,6 +331,17 @@ def benchmark(
     answer_model: str = typer.Option(None, "--answer-model"),
     judge_provider: str = typer.Option(None, "--judge-provider"),
     judge_model: str = typer.Option(None, "--judge-model"),
+    rubric: list[Path] = typer.Option(
+        None, "--rubric",
+        help="Rubric YAML file or directory (repeatable). Overrides the shipped "
+             "default rubrics when given.",
+    ),
+    property_suite: list[Path] = typer.Option(
+        None, "--property-suite",
+        help="Property-suite YAML file or directory (repeatable). Overrides the "
+             "shipped default suites when given. (Per-case expected_properties "
+             "always activate regardless of this flag.)",
+    ),
     max_iterations: int = typer.Option(1, "--max-iterations", min=1),
     output: Path = typer.Option(
         None, "--output",
@@ -344,9 +355,23 @@ def benchmark(
     (generates raw and refined answers), and Judge (compares them). Each role
     has its own --*-provider / --*-model flags; unset flags fall through to
     the defaults already used by `problemform run`.
+
+    Rubric and property lenses (M3B) run alongside the M3A comparative judgment:
+    without --rubric / --property-suite the shipped defaults load; explicit flags
+    override the defaults. Each case's expected_properties activate as
+    formulation-target checks in every run.
     """
     # Lazy imports so eval is loaded only when the command runs.
-    from problemform.eval.corpus import CorpusError, load_test_cases
+    from problemform.eval.corpus import (
+        CorpusError,
+        load_property_suite,
+        load_rubrics,
+        load_test_cases,
+    )
+    from problemform.eval.defaults import (
+        load_default_properties,
+        load_default_rubrics,
+    )
     from problemform.eval.engine import _detect_same_family, run_benchmark
     from problemform.eval.report import write_run
 
@@ -356,6 +381,28 @@ def benchmark(
         _die(str(exc))
     if not cases:
         _die(f"no YAML test cases found in {suite}")
+
+    # Resolve the rubric + property lenses: explicit flags override the shipped
+    # defaults; absent flags fall back to benchmarks/rubrics + benchmarks/properties.
+    if rubric:
+        try:
+            rubrics = [r for path in rubric for r in load_rubrics(path)]
+        except CorpusError as exc:
+            _die(str(exc))
+    else:
+        rubrics, reason = load_default_rubrics()
+        if reason:
+            err.print(f"[yellow]warning:[/yellow] {reason}")
+
+    if property_suite:
+        try:
+            property_suites = [p for path in property_suite for p in load_property_suite(path)]
+        except CorpusError as exc:
+            _die(str(exc))
+    else:
+        property_suites, reason = load_default_properties()
+        if reason:
+            err.print(f"[yellow]warning:[/yellow] {reason}")
 
     # Resolve role-specific env vars before falling through to make_provider's
     # generic PROBLEMFORM_PROVIDER / PROBLEMFORM_MODEL fallback. Precedence:
@@ -475,6 +522,8 @@ def benchmark(
             judge_provider=judge_provider_obj,
             output_dir=output,
             max_iterations=max_iterations,
+            rubrics=rubrics,
+            property_suites=property_suites,
             config=config,
             bias_warnings=bias_warnings,
             on_progress=on_progress,
