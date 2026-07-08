@@ -109,6 +109,8 @@ def _runtime_section(report: BenchmarkReport) -> str:
         f"| ProblemForm refinement | {format_seconds(rt.pf_seconds)} |",
         f"| Answer generation | {format_seconds(rt.answer_seconds)} |",
         f"| Comparative judge | {format_seconds(rt.judge_seconds)} |",
+        f"| Rubric evaluation | {format_seconds(rt.rubric_seconds)} |",
+        f"| Property checks | {format_seconds(rt.property_seconds)} |",
         f"| **Total** | **{format_seconds(rt.total_seconds)}** |",
     ])
 

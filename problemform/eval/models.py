@@ -194,15 +194,23 @@ class AggregateRuntime(BaseModel):
     """Per-role wall-clock totals across all benchmark cases.
 
     Built by summing each contributing key from per-case ``TestCaseResult.timing``:
-    PF ← ``pf_run``; Answer ← ``raw_answer`` + ``refined_answer``; Judge ← ``judge``.
+    PF ← ``pf_run``; Answer ← ``raw_answer`` + ``refined_answer``;
+    Judge ← ``judge``; Rubric ← ``rubric``; Property ← ``property``. ``judge`` is
+    the M3A comparative lens only; the rubric and property lenses (M3B) are
+    tracked separately so ``total_seconds`` reconciles without merging the lenses.
     Errored cases contribute whatever partial timing they captured — time spent
     is a measurement signal even when the case ultimately errored.
+
+    ``rubric_seconds`` / ``property_seconds`` default to ``0.0`` so pre-M3B-α.4
+    ``report.json`` files (which lack them) continue to deserialize cleanly.
     """
 
     total_seconds: float = 0.0
     pf_seconds: float = 0.0
     answer_seconds: float = 0.0
     judge_seconds: float = 0.0
+    rubric_seconds: float = 0.0
+    property_seconds: float = 0.0
 
 
 class RubricAggregate(BaseModel):

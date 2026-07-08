@@ -189,9 +189,11 @@ def test_runtime_section_present_with_per_role_totals():
     report = report.model_copy(update={
         "aggregate_runtime": AggregateRuntime(
             total_seconds=552.0,   # 9m 12s
-            pf_seconds=552.0 - 167.0 - 159.0,
+            pf_seconds=552.0 - 167.0 - 159.0 - 40.0 - 20.0,
             answer_seconds=167.0,
             judge_seconds=159.0,
+            rubric_seconds=40.0,
+            property_seconds=20.0,
         ),
     })
     md = render_markdown(report)
@@ -199,6 +201,8 @@ def test_runtime_section_present_with_per_role_totals():
     assert "ProblemForm refinement" in md
     assert "Answer generation" in md
     assert "Comparative judge" in md
+    assert "Rubric evaluation" in md
+    assert "Property checks" in md
     assert format_seconds(552.0) in md  # total row uses format_seconds
     # Runtime section appears before the per-case results table.
     assert md.index("## Runtime") < md.index("## Per-case results")

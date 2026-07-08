@@ -339,11 +339,15 @@ def _aggregate_runtime(results: list[TestCaseResult]) -> AggregateRuntime:
         for r in results
     )
     judge = sum(r.timing.get("judge", 0.0) for r in results)
+    rubric = sum(r.timing.get("rubric", 0.0) for r in results)
+    prop = sum(r.timing.get("property", 0.0) for r in results)
     return AggregateRuntime(
-        total_seconds=pf + answer + judge,
+        total_seconds=pf + answer + judge + rubric + prop,
         pf_seconds=pf,
         answer_seconds=answer,
         judge_seconds=judge,
+        rubric_seconds=rubric,
+        property_seconds=prop,
     )
 
 

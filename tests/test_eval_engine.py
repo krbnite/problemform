@@ -492,6 +492,35 @@ def test_rubric_delta_reflects_raw_vs_refined_scores(tmp_path: Path):
     assert agg.mean_delta == pytest.approx(0.5)
 
 
+def test_rubric_and_property_timing_flows_into_aggregate_runtime(tmp_path: Path):
+    """Rubric/property lens time is counted in the run's aggregate runtime."""
+    report = run_benchmark(
+        [_case_with_props("cR")],
+        pf_provider=_PFStub(),
+        answer_provider=_AnswerStub(),
+        judge_provider=_JudgeStub(),
+        output_dir=tmp_path,
+        max_iterations=1,
+        rubrics=[_formulation_rubric()],
+        property_suites=_mixed_property_suite(),
+        rng=random.Random(0),
+    )
+    rt = report.aggregate_runtime
+    # Both lenses ran, so both contribute non-negative time and are tracked.
+    assert rt.rubric_seconds >= 0.0
+    assert rt.property_seconds >= 0.0
+    # The per-case timing dict carries the lens keys the aggregate sums from.
+    t = report.test_case_results[0].timing
+    assert "rubric" in t and "property" in t
+    assert rt.rubric_seconds == pytest.approx(t["rubric"])
+    assert rt.property_seconds == pytest.approx(t["property"])
+    # Total reconciles: it includes every per-role component, lenses included.
+    assert rt.total_seconds == pytest.approx(
+        rt.pf_seconds + rt.answer_seconds + rt.judge_seconds
+        + rt.rubric_seconds + rt.property_seconds
+    )
+
+
 def test_rubric_failure_does_not_drop_m3a_completion(tmp_path: Path):
     """A failing rubric lens records an error but leaves the M3A verdict intact."""
 

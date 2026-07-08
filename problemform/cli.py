@@ -535,7 +535,9 @@ def benchmark(
         f"[bold]Run total:[/bold] {_fmt_seconds(rt.total_seconds)} "
         f"(PF {_fmt_seconds(rt.pf_seconds)}, "
         f"Answer {_fmt_seconds(rt.answer_seconds)}, "
-        f"Judge {_fmt_seconds(rt.judge_seconds)})"
+        f"Judge {_fmt_seconds(rt.judge_seconds)}, "
+        f"Rubric {_fmt_seconds(rt.rubric_seconds)}, "
+        f"Property {_fmt_seconds(rt.property_seconds)})"
     )
 
     # Per-case timing breakdown (stderr; report contents unchanged).
@@ -546,6 +548,8 @@ def benchmark(
     timing_table.add_column("Raw", justify="right")
     timing_table.add_column("Refined", justify="right")
     timing_table.add_column("Judge", justify="right")
+    timing_table.add_column("Rubric", justify="right")
+    timing_table.add_column("Property", justify="right")
     for r in report.test_case_results:
         t = r.timing or {}
         total_s = sum(t.values())
@@ -556,6 +560,8 @@ def benchmark(
             _fmt_seconds(t.get("raw_answer", 0.0)) if "raw_answer" in t else "—",
             _fmt_seconds(t.get("refined_answer", 0.0)) if "refined_answer" in t else "—",
             _fmt_seconds(t.get("judge", 0.0)) if "judge" in t else "—",
+            _fmt_seconds(t.get("rubric", 0.0)) if "rubric" in t else "—",
+            _fmt_seconds(t.get("property", 0.0)) if "property" in t else "—",
         )
     err.print(timing_table)
 
