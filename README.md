@@ -14,6 +14,24 @@ LLM output quality is bounded by prompt quality. Most prompts are written once, 
 
 ---
 
+## What kinds of things can ProblemForm refine?
+
+| Formulation Type | What the user is trying to do | What should refinement look like? | Why test it? | Example |
+|---|---|---|---|---|
+| **Questions** | Ask for information or understanding. | Clarify what is being asked, surface hidden assumptions and constraints, reduce ambiguity, and identify missing context. | Questions are the traditional benchmark for ProblemForm and remain the primary comparison point. | *"Why do eclipses happen?"* |
+| **Decisions** | Choose between one or more possible courses of action. | Expose hidden tradeoffs, identify missing constraints or objectives, clarify decision criteria, and recognize when the user has already done so. | Tests whether ProblemForm improves decision quality rather than merely generating recommendations. | *"Should I leave my stable software job to join a startup?"* |
+| **Dilemmas** | Resolve a conflict where competing values or obligations make there unlikely to be a single objectively correct answer. | Surface the competing values, stakeholders, and tradeoffs without prematurely assuming one should dominate. | Tests whether ProblemForm recognizes value conflicts instead of treating every problem as an optimization task. | *"Should a company delay launching a biased AI model or release it and patch later?"* |
+| **Beliefs** | Express something believed to be true. | Distinguish claims from evidence, identify assumptions, clarify ambiguous terms, and reformulate the belief into something that can be investigated or challenged. | Tests whether ProblemForm can transform beliefs into better objects of inquiry. | *"AI will replace software engineers within ten years."* |
+| **Arguments** | Justify a conclusion through reasoning. | Make premises, conclusions, assumptions, and inferential structure explicit while preserving the author's position. | Tests whether ProblemForm improves the representation of reasoning itself, independent of whether the conclusion is true. | *Aquinas' First Way.* |
+| **Goals** | Describe a desired future state or objective. | Clarify success criteria, motivations, constraints, priorities, dependencies, and timelines. | Tests whether ProblemForm can make vague aspirations more actionable without prescribing solutions. | *"I want to become a better engineering manager."* |
+| **Plans** | Describe a proposed course of action for achieving a goal. | Surface assumptions, risks, missing steps, dependencies, resource constraints, and alternative strategies while preserving the author's overall intent. | Tests whether ProblemForm improves execution readiness rather than judging whether a plan is good. | *"We should migrate our backend to Kubernetes next quarter."* |
+| **Explanations** | Help someone understand a concept or phenomenon. | Clarify the explanatory goal, audience, scope, assumptions, and potential misconceptions. | Tests whether ProblemForm can improve explanatory requests beyond simple question answering. | *"Explain quantum tunneling to a high school student."* |
+| **Instructions** | Tell a person or agent to perform a task. | Clarify objectives, constraints, ordering, success criteria, and edge cases while reducing ambiguity. | Tests whether ProblemForm improves task execution by making instructions more precise and complete. | *"Summarize this paper in five bullet points."* |
+| **Prompts** | Guide an AI system toward producing a desired output. | Clarify objectives, audience, constraints, evaluation criteria, and missing context while preserving the user's intent. | Tests whether ProblemForm can recursively improve AI interactions by producing better prompts. | *"Write a children's story about dragons."* |
+| **Specifications** | Define the desired behavior, requirements, or constraints of a system or product. | Surface ambiguities, distinguish requirements from implementation decisions, clarify edge cases, and identify missing requirements. | Tests whether ProblemForm improves engineering requirements before implementation begins. | *"Design an API that processes online payments."* |
+
+---
+
 ## Key concepts
 
 - **`ProblemState`** — a single immutable Pydantic record that flows through the pipeline. Each phase returns a new `ProblemState` via `model_copy(update=…)`; nothing is mutated in place.
