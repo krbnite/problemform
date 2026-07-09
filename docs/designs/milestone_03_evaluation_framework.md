@@ -261,8 +261,8 @@ benchmarks/                               # repo root
 ```
 benchmarks/
   rubrics/
-    answer_quality.yaml
-    prompt_quality.yaml
+    answer_quality_v1.yaml
+    formulation_quality_v1.yaml
 ```
 
 **Why `benchmarks/` at the repo root?** It's user content, not library code. Putting it inside `problemform/` would invite the implementation to assume ownership of test cases — the failure mode flagged in the original brief. Placing it at the root makes "users add/remove/organize" the obvious workflow.
@@ -463,7 +463,7 @@ Smallest cut that produces a defensible headline number.
 - Expected-property checks (Level 3).
 - `problemform eval` single-case command.
 - `problemform corpus validate` / `corpus list`.
-- One built-in rubric YAML under `benchmarks/rubrics/answer_quality.yaml`.
+- One built-in rubric YAML under `benchmarks/rubrics/answer_quality_v1.yaml`.
 
 ### Phase C — Robustness  **[DEFERRED]**
 

@@ -108,7 +108,7 @@ Empirical resolution of H1, H2 (and consequently H3, H4). Cost-bounded; manual; 
 
 1. Run `problemform benchmark benchmarks/default --rubric benchmarks/rubrics/formulation_quality_v1.yaml` against the existing M3A corpus with whatever provider trio you've been using. Capture report.json + report.md. Because explicit `--rubric` flags override default-rubric autoloading (see open question below), this keeps the H1 run focused on the formulation-quality lens.
 2. Run twice or three times to assess internal consistency (rubric scores stable across runs).
-3. Construct a single-case YAML for the Aquinas input. Place it under `benchmarks/non_question_probe/aquinas.yaml` (gitignored or a new tracked directory). Run `benchmark` against it with the formulation rubric. The M3A answer comparison may still execute because α does not add formulation-only benchmark mode; ignore it for H2 except as a note about why formulation-target evaluation is needed.
+3. Construct a single-case YAML for the Aquinas input. **[Superseded: implemented as the tracked, first-class `benchmarks/arguments/aquinas.yaml` — organized by input type — rather than the originally-proposed `benchmarks/non_question_probe/`.]** Run `benchmark` against it with the formulation rubric. The M3A answer comparison may still execute because α does not add formulation-only benchmark mode; ignore it for H2 except as a note about why formulation-target evaluation is needed.
 4. Author `docs/reports/m3b_alpha_validation_<YYYY-MM-DD>.md` with:
    - Setup (corpus version, provider trio, rubric version).
    - H1 results (question-corpus rubric scores, internal-consistency observation, correlation with M3A verdicts).
