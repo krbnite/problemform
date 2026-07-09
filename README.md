@@ -38,15 +38,21 @@ LLM output quality is bounded by prompt quality. Most prompts are written once, 
 - Eight CLI subcommands (`analyze`, `synthesize`, `judge`, `run`, `agent`, `explain`, `export`, `benchmark`).
 - Per-phase de-duplication and caps on accumulated artifacts; a compact synthesis context that keeps prompt-refinement input small.
 - Friendly CLI errors for provider misconfiguration, structured-output failures, and file I/O.
-- A built-in **evaluation framework** for measuring whether ProblemForm actually improves the answers a downstream model produces (see below).
+- A built-in **evaluation framework** with three parallel, independently-reported lenses — comparative answer judging, absolute rubric scoring (of formulations and of answers), and behavioral property checks (see below).
 
 ---
 
 ## Evaluation framework
 
-ProblemForm includes a benchmark harness that measures its own effect. This is deliberate: The value of a problem-formulation system can't be assumed--it has to be measured. The current benchmark framework compares answers produced from raw and refined prompts and uses an independent judge model to evaluate whether the refinement materially improved the result. The evaluation framework is intentionally lightweight and should be viewed as an early measurement system rather than a definitive assessment of answer quality.
+ProblemForm includes a benchmark harness that measures its own effect. This is deliberate: The value of a problem-formulation system can't be assumed--it has to be measured. The framework applies **three parallel lenses** to each case and reports them separately — never collapsed into a single score:
 
-The harness compares the answer an LLM produces when given the **raw question** against the answer it produces when given the **refined prompt**, and asks a third LLM which is better.
+1. **Comparative answer judging** (the original lens) — compare the answer produced from the raw prompt against the answer from the refined prompt.
+2. **Absolute rubric scoring** — score the *formulation* itself (and, optionally, the answer) against weighted criteria.
+3. **Behavioral property checks** — binary "should always hold" assertions about the formulation or the answer.
+
+The evaluation framework is intentionally lightweight and should be viewed as an early measurement system rather than a definitive assessment of quality.
+
+The comparative lens works by comparing the answer an LLM produces when given the **raw question** against the answer it produces when given the **refined prompt**, and asking a third LLM which is better.
 
 **Three provider roles**, configurable independently:
 
@@ -71,7 +77,15 @@ Both rates use `n_completed` (errored cases excluded) as the denominator.
 
 **Control cases.** The shipped corpus includes a well-formed factual question (`what_causes_eclipses`) where ProblemForm may not help — or may hurt. This is a structural guard against the benchmark drifting into an advocacy artifact.
 
-Run the default suite against an OpenAI ProblemForm + Answer model and an Anthropic judge:
+**Rubric & property lenses.** Alongside the answer comparison, each run also applies:
+
+- **Absolute rubrics** — weighted criteria scored 0–1 and aggregated per rubric (raw vs refined mean, plus the refined−raw delta). Two ship by default: `formulation_quality_v1` (`target: formulation` — scores the raw vs refined *prompt* on central-claim clarity, assumption surfacing, constraint articulation, alternative-framing coverage, and meta-question presence) and `answer_quality_v1` (`target: artifact` — scores the answers). Because the formulation rubric evaluates the prompt directly, the harness measures inputs that have no natural downstream answer (e.g. arguments), not just questions.
+- **Property checks** — binary assertions reported as raw/refined pass rates (e.g. `addresses_stated_request`). Each corpus case's `expected_properties` also activate as `target: formulation` checks.
+- **Disagreement diagnostic** — cases where the comparative-answer verdict and the formulation-rubric delta point in different directions are surfaced as the high-value cases for human review: the two lenses side by side, never merged.
+
+Select lenses with the repeatable `--rubric <path>` and `--property-suite <path>` flags. **With no flags, the shipped defaults load** (from `benchmarks/rubrics/` and `benchmarks/properties/`); **an explicit flag overrides** the corresponding default set. See [`docs/cli_commands.md`](docs/cli_commands.md) for the full semantics.
+
+Run the default suite (all three lenses) against an OpenAI ProblemForm + Answer model and an Anthropic judge:
 
 ```bash
 problemform benchmark benchmarks/default \
@@ -297,11 +311,12 @@ For this reason, ProblemForm defaults to `max_iterations=1`. Additional iteratio
 
 - Pure-Python core: `ProblemState`, all eight phase handlers, both LLM providers, end-to-end pipeline.
 - CLI: eight subcommands covering the analytical phases, synthesis, judgment, full-loop execution, single-phase dispatch, inspection, and export.
-- Evaluation framework (Phase A): comparative answer judging, three-way reporting, position randomization, failure containment, YAML corpus loader, shipped starter suite with a control case.
+- Evaluation framework (M3A): comparative answer judging, three-way reporting, position randomization, failure containment, YAML corpus loader, shipped starter suite with a control case.
+- Formulation & answer rubrics + property checks (M3B-α): absolute rubric scoring with per-rubric raw/refined deltas, behavioral property checks with pass rates, the M3A-vs-formulation disagreement diagnostic, repeatable `--rubric` / `--property-suite` flags with default-loading, and a first-class non-question benchmark case (`benchmarks/arguments/`). Three lenses reported in parallel, never merged into one score.
 
 **Planned (capability-focused; specific technologies are tracked in [`docs/roadmap.md`](docs/roadmap.md)):**
 
-- Broader evaluation: rubric-based scoring, behavioral property checks, multi-judgment aggregation, dev/held-out splits, regression-test infrastructure.
+- Broader evaluation (M3B-β and later): comparative-mode rubrics, corpus diversification across non-question input types, multi-judgment aggregation (K>1), dev/held-out splits, and rubric calibration.
 - Graph-based orchestration of the pipeline.
 - Interactive UI for non-CLI users.
 - Integration-protocol exposure for use inside other agent systems.

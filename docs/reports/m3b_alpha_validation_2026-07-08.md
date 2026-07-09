@@ -212,14 +212,23 @@ the Aquinas argument (`benchmarks/arguments/aquinas.yaml`): a user pushing back 
 a friend's claim that Aquinas proves God's existence, with an implicit
 underdetermination argument. 3 runs, **cross-family**: ProblemForm + Answer
 `gpt-4.1`, rubric judge **`claude-sonnet-4-6`** (enabled by the Anthropic provider
-fix). The M3A answer comparison and the artifact-target property suite were
-**suppressed** (empty `--property-suite`) because neither is meaningful for a
-non-question — there is no natural downstream "answer" to an argument, so
-evaluating one is noise. This mirrors the roadmap's instruction to ignore the M3A
-comparison for the Aquinas case and keeps the run on H2's actual instrument, the
-formulation rubric. (An initial non-focused de-risk run confirmed the point: its
-only error was an artifact-property JSON-parse failure against the meaningless
-"answer", never a formulation-rubric failure.)
+fix). Two clarifications about what ran:
+
+- **The artifact-target property suite was suppressed** (empty `--property-suite`)
+  because a property like "the answer addresses the request" has no meaning when
+  there is no natural downstream answer to an argument — evaluating it would add
+  noise, not evidence.
+- **The M3A answer comparison still ran** — the pipeline has no switch to disable
+  it, so an "answer" was generated for the raw argument and for the refined
+  formulation and a comparative judgment was produced (it returned `tie` in all 3
+  runs). Per the roadmap, that M3A verdict is **ignored / treated as
+  non-authoritative for H2**: there is no natural answer to a belief-critique, so
+  the comparison is not a meaningful signal here. The formulation rubric is the
+  instrument under evaluation.
+
+(An initial non-focused de-risk run confirmed the property point: its only error
+was an artifact-property JSON-parse failure against that meaningless "answer",
+never a formulation-rubric failure.)
 
 **Execution health.** All 3 runs completed cleanly — `errors == []`, full rubric
 (5 criteria × raw + refined) populated by the Anthropic judge every run. This is

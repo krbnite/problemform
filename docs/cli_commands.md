@@ -227,6 +227,7 @@ problemform benchmark <suite-path> \
     [--pf-provider PROV] [--pf-model NAME] \
     [--answer-provider PROV] [--answer-model NAME] \
     [--judge-provider PROV] [--judge-model NAME] \
+    [--rubric PATH ...] [--property-suite PATH ...] \
     [--max-iterations N] \
     [--output PATH] \
     [--format {md|json}]
@@ -256,7 +257,24 @@ Per-case workflow:
 2. Generate `raw_answer = answer_provider.generate_text(raw_question)`.
 3. Generate `refined_answer = answer_provider.generate_text(refined_prompt)`.
 4. Run one position-randomized comparative judgment on the answer pair.
-5. Persist artifacts and append a result entry.
+5. Score any configured rubrics and property checks against the raw and refined subjects (see next).
+6. Persist artifacts and append a result entry.
+
+Rubric and property lenses (M3B-α):
+
+Alongside the comparative answer judgment, each run applies two further lenses. All three are reported **in parallel and never collapsed into a single score**.
+
+- **Rubrics** (`--rubric PATH`, repeatable). Absolute-mode rubrics score a subject against weighted criteria, normalized to 0–1 and aggregated per rubric (raw mean, refined mean, and refined−raw delta). A rubric's `target` decides the subject: `formulation` scores the raw question vs the refined prompt; `artifact` scores the raw vs refined answer. `PATH` may be a single YAML file or a directory (walked recursively).
+- **Property suites** (`--property-suite PATH`, repeatable). Binary "should always hold" assertions, reported as raw/refined pass rates per property. `target` routes the subject the same way as rubrics.
+- **Activated `expected_properties`.** Each corpus case's `expected_properties` strings are always activated as `target=formulation`, `expected=True` checks for that case — independent of the `--property-suite` flag.
+- **Disagreement diagnostic.** The report flags cases where the comparative-answer verdict and a `target=formulation` rubric's delta point in different directions (the high-value cases for human review).
+
+Default loading and override:
+
+- **No `--rubric`** → the shipped default rubrics load (all YAML under `benchmarks/rubrics/`: `formulation_quality_v1`, `answer_quality_v1`).
+- **No `--property-suite`** → the shipped default suites load (all YAML under `benchmarks/properties/`: `artifact_baseline_v1`).
+- **Passing the flag overrides** the corresponding default set entirely (it does not add to it). Repeated flags accumulate among themselves; pass the default path explicitly to include it alongside custom paths. To run with no shared property suite, point `--property-suite` at an empty directory (per-case `expected_properties` still activate).
+- Default paths are resolved relative to the installed package (repo root), so they load regardless of the working directory.
 
 Bias mitigations:
 
@@ -287,9 +305,12 @@ Report contents:
 
 - Headline scoreboard: refined-win rate, raw-win rate, tie rate, material-improvement rate, degradation rate.
 - Configuration block: three providers' roles, models, position-randomized flag, judgments-per-pair, bias warnings.
+- Rubric evaluations: per-rubric target, raw mean, refined mean, and refined−raw delta.
+- Property checks: per-property target and raw/refined pass rates.
+- Disagreement diagnostic: cases where the comparative-answer verdict and the formulation-rubric delta diverge.
 - Per-case table: case | category | winner | materiality.
 - Diagnostic section: cases where refined was worse than raw or marked degradation.
-- Errors section: per-case error lists.
+- Errors section: per-case error lists (including any rubric/property lens failures, which are contained per case and do not drop the case from the M3A scoreboard).
 
 Purpose:
 
