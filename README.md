@@ -47,6 +47,12 @@ LLM output quality is bounded by prompt quality. Most prompts are written once, 
 - **Prompt-delta-primary convergence.** The judge's verdict is driven by whether a competent answerer would respond meaningfully differently to the two prompt versions. Remaining "things we could still explore" are tracked but informational only.
 - **`LLMProvider` protocol.** OpenAI and Anthropic are both supported through a single `generate_text` / `generate_structured` interface. SDKs are imported lazily, so it is not required to install models from each and every provider.
 
+These types fall roughly into two families:
+* Some formulations express what a person is trying to think through — questions, decisions, dilemmas, beliefs, arguments, and goals. 
+* Others are artifacts the person is trying to produce or improve — plans, explanations, instructions, prompts, and specifications. 
+
+ProblemForm is intended to help with both: clarifying cognition and clarifying artifacts.
+
 ---
 
 ## Current capabilities
