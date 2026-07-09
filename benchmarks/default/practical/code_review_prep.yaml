@@ -4,7 +4,7 @@ category: practical
 tags:
   - software-engineering
   - context-elicitation
-raw_question: >
+raw_formulation: >
   How should I prepare for my upcoming code review?
 expected_properties:
   - elicits the kind of code under review (language, size, domain)

@@ -148,7 +148,7 @@ class _AlwaysCrash:
 
 
 def _case(name="c1") -> TestCase:
-    return TestCase(name=name, category="cat", raw_question="why is the sky blue?")
+    return TestCase(name=name, category="cat", raw_formulation="why is the sky blue?")
 
 
 def test_run_benchmark_persists_artifacts_and_judges(tmp_path: Path):
@@ -401,7 +401,7 @@ def _mixed_property_suite() -> list[PropertyCheck]:
 
 def _case_with_props(name="c1") -> TestCase:
     return TestCase(
-        name=name, category="cat", raw_question="why is the sky blue?",
+        name=name, category="cat", raw_formulation="why is the sky blue?",
         expected_properties=["elicits the observer's altitude", "avoids jargon"],
     )
 

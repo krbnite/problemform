@@ -5,7 +5,7 @@ tags:
   - control
   - factual
   - well-formed
-raw_question: >
+raw_formulation: >
   What causes eclipses?
 expected_properties:
   - remains scientifically accurate

@@ -41,7 +41,7 @@ def _judgment(winner_actual="refined", materiality="material"):
 def _result(name, category, judgment=None, errors=None,
             raw_answer="RAW_TEXT_INLINE", refined_answer="REFINED_TEXT_INLINE"):
     return TestCaseResult(
-        test_case=TestCase(name=name, category=category, raw_question="q"),
+        test_case=TestCase(name=name, category=category, raw_formulation="q"),
         raw_prompt="q",
         refined_prompt="q-refined",
         raw_answer=raw_answer,
@@ -261,7 +261,7 @@ def test_rubric_property_sections_empty_when_absent():
 
 def _case_with_formulation_eval(name, judgment, raw_score, refined_score):
     return TestCaseResult(
-        test_case=TestCase(name=name, category="cat", raw_question="q"),
+        test_case=TestCase(name=name, category="cat", raw_formulation="q"),
         raw_prompt="q", refined_prompt="q-refined",
         raw_answer="RAW", refined_answer="REFINED",
         comparative_judgment=judgment,

@@ -78,7 +78,7 @@ The most important structural decision.
 | Role | Job | Default |
 |---|---|---|
 | **PF provider** | Drives the ProblemForm pipeline (analysis to synthesis to judgment). | Whatever the user already uses for `problemform run`. |
-| **Answer provider** | Produces an answer to `raw_question` and to `refined_prompt`. | Same family as PF provider by default. The thing being tested is the *prompt's effect on this model's answer*. |
+| **Answer provider** | Produces an answer to `raw_formulation` and to `refined_prompt`. | Same family as PF provider by default. The thing being tested is the *prompt's effect on this model's answer*. |
 | **Judge provider** | Renders the pairwise verdict (and rubric scores when those land). | Strongly recommend a *different model family* from the Answer provider (to mitigate self-preference). The framework will **warn** when this is not the case but will not block. |
 
 These roles each get their own `--*-provider` / `--*-model` flag and reuse `problemform.core.language_models.make_provider`.
@@ -91,7 +91,7 @@ These roles each get their own `--*-provider` / `--*-model` flag and reuse `prob
 - **Coding/regex-based property checks**: more deterministic, but the kinds of properties ProblemForm cares about ("disambiguates 'nothing'", "separates semantics from metaphysics") are not regex-checkable. We need an LLM judge for these.
 - **Human-only evaluation**: highest signal, lowest throughput; not viable for regression testing. We may support exporting cases for human spot-checking but won't require it.
 - **Statistical comparison of generated answer embeddings**: tempting, but answers can be cosmetically identical and substantively different (or vice versa). Embedding similarity doesn't map cleanly to "is this better?"
-- **Answer-generation wrapper prompt**: rejected as a confound. The eval would conflate ProblemForm's effect with the wrapper's effect. Engine calls `provider.generate_text(...)` directly on both `raw_question` and `refined_prompt`. If the answer model needs framing instructions, that belongs upstream of ProblemForm (encoded by the synthesizer itself).
+- **Answer-generation wrapper prompt**: rejected as a confound. The eval would conflate ProblemForm's effect with the wrapper's effect. Engine calls `provider.generate_text(...)` directly on both `raw_formulation` and `refined_prompt`. If the answer model needs framing instructions, that belongs upstream of ProblemForm (encoded by the synthesizer itself).
 - **HTML report**: Markdown renders everywhere, diffs cleanly in PRs, and matches existing CLI conventions. We can add HTML later if eyeballing 50+ cases becomes painful.
 
 ---
@@ -108,7 +108,7 @@ All Pydantic, following the existing `problemform.models` conventions. Lives in 
 class TestCase(BaseModel):
     name: str
     category: str
-    raw_question: str
+    raw_formulation: str
     tags: list[str] = []
     expected_properties: list[str] = []     # stored; NOT evaluated until Phase B
     expected_failure_modes: list[str] = []  # stored; NOT evaluated until Phase B
@@ -326,15 +326,15 @@ Default behavior: runs every YAML in the suite, produces a full report. `--rando
 ```
 TestCase
   |
-  |  raw_question
+  |  raw_formulation
   v
-ProblemForm.run(raw_question, pf_provider, max_iterations=1)
+ProblemForm.run(raw_formulation, pf_provider, max_iterations=1)
   |
   +---> refined_prompt = state.final_prompt
   |     problem_state snapshot persisted to cases/<name>/problem_state.json
   v
 Generate answers (direct calls, no wrapper prompt):
-  raw_answer      = answer_provider.generate_text(raw_question)
+  raw_answer      = answer_provider.generate_text(raw_formulation)
   refined_answer  = answer_provider.generate_text(refined_prompt)
   |
   v

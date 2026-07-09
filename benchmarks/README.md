@@ -25,7 +25,7 @@ category: philosophy
 tags:
   - tag1
   - tag2
-raw_question: >
+raw_formulation: >
   The user's original question, exactly as they would ask it.
 expected_properties:
   - things a good answer or refined prompt should do
@@ -37,7 +37,7 @@ notes: |
 
 Field requirements:
 
-- `name`, `category`, `raw_question`: required.
+- `name`, `category`, `raw_formulation`: required.
 - All other fields: optional; sensible defaults.
 - `expected_properties` and `expected_failure_modes` are **stored but not evaluated** in Phase A. Phase B introduces property checks that consume these.
 

@@ -84,7 +84,7 @@ The Aquinas case is one example of a much broader set: arguments, debate positio
 
 This is, on reflection, the foundational observation.
 
-M3A asks: *did the refined formulation lead to a better downstream answer?* It calls `raw_answer = answer_provider.generate_text(raw_question)` and `refined_answer = answer_provider.generate_text(refined_prompt)`, then asks a judge which is better.
+M3A asks: *did the refined formulation lead to a better downstream answer?* It calls `raw_answer = answer_provider.generate_text(raw_formulation)` and `refined_answer = answer_provider.generate_text(refined_prompt)`, then asks a judge which is better.
 
 But that comparison is the result of *two* things, not one:
 

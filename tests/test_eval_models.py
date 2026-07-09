@@ -27,7 +27,7 @@ def _judgment(**overrides):
 
 def _result(name="case1", judgment=None, errors=None):
     return TestCaseResult(
-        test_case=TestCase(name=name, category="philosophy", raw_question="q"),
+        test_case=TestCase(name=name, category="philosophy", raw_formulation="q"),
         raw_prompt="q",
         refined_prompt="q-refined",
         problem_state_path=f"cases/{name}/problem_state.json",
@@ -42,7 +42,7 @@ def test_test_case_round_trips_through_json():
     tc = TestCase(
         name="cosmology_nothingness",
         category="philosophy",
-        raw_question="why is there something rather than nothing",
+        raw_formulation="why is there something rather than nothing",
         tags=["cosmology", "metaphysics"],
         expected_properties=["disambiguates 'nothing'"],
         notes="control rationale",

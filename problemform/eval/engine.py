@@ -2,7 +2,7 @@
 
 Phase A workflow per case:
     1. Run ProblemForm once on the raw question.
-    2. Generate raw_answer = answer_provider.generate_text(raw_question).
+    2. Generate raw_answer = answer_provider.generate_text(raw_formulation).
     3. Generate refined_answer = answer_provider.generate_text(refined_prompt).
     4. Run a position-randomized comparative judgment on the answer pair.
     5. Persist per-case artifacts and append a TestCaseResult.
@@ -209,7 +209,7 @@ def _run_one_case(
     """Execute the per-case pipeline. Errors are captured, not raised."""
     timing: dict[str, float] = {}
     errors: list[str] = []
-    refined_prompt = case.raw_question  # fallback if PF fails
+    refined_prompt = case.raw_formulation  # fallback if PF fails
     raw_answer = ""
     refined_answer = ""
     judgment = None
@@ -230,9 +230,9 @@ def _run_one_case(
     _emit("step", step="problemform_refinement")
     try:
         t0 = time.time()
-        state = pf_run(case.raw_question, pf_provider, max_iterations=max_iterations)
+        state = pf_run(case.raw_formulation, pf_provider, max_iterations=max_iterations)
         timing["pf_run"] = time.time() - t0
-        refined_prompt = state.final_prompt or case.raw_question
+        refined_prompt = state.final_prompt or case.raw_formulation
         ps_path = case_dir / "problem_state.json"
         ps_path.write_text(state.model_dump_json(indent=2))
         problem_state_path = str(ps_path.relative_to(case_dir.parent.parent))
@@ -242,7 +242,7 @@ def _run_one_case(
     _emit("step", step="raw_answer")
     try:
         t0 = time.time()
-        raw_answer = answer_provider.generate_text(case.raw_question)
+        raw_answer = answer_provider.generate_text(case.raw_formulation)
         timing["raw_answer"] = time.time() - t0
         (case_dir / "raw_answer.txt").write_text(raw_answer)
     except Exception as exc:
@@ -262,7 +262,7 @@ def _run_one_case(
         try:
             t0 = time.time()
             judgment = judge_answers(
-                judge_provider, case.raw_question, raw_answer, refined_answer, rng=rng
+                judge_provider, case.raw_formulation, raw_answer, refined_answer, rng=rng
             )
             timing["judge"] = time.time() - t0
         except Exception as exc:
@@ -277,7 +277,7 @@ def _run_one_case(
     rubric_evaluations: list[AbsoluteRubricEvaluation] = []
     property_check_results: list[PropertyCheckResult] = []
     subjects: Subjects = {
-        "formulation": (case.raw_question, refined_prompt),
+        "formulation": (case.raw_formulation, refined_prompt),
         "artifact": (raw_answer, refined_answer),
     }
     active_properties = list(property_suites or []) + _activate_expected_properties(case)
@@ -314,7 +314,7 @@ def _run_one_case(
 
     return TestCaseResult(
         test_case=case,
-        raw_prompt=case.raw_question,
+        raw_prompt=case.raw_formulation,
         refined_prompt=refined_prompt,
         problem_state_path=problem_state_path,
         raw_answer=raw_answer,

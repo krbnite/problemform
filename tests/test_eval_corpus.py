@@ -43,7 +43,7 @@ def test_missing_suite_directory_raises(tmp_path: Path):
 
 def test_path_must_be_directory(tmp_path: Path):
     f = tmp_path / "not-a-dir.yaml"
-    f.write_text("name: x\ncategory: y\nraw_question: z\n")
+    f.write_text("name: x\ncategory: y\nraw_formulation: z\n")
     with pytest.raises(CorpusError, match="not a directory"):
         load_test_cases(f)
 
@@ -57,7 +57,7 @@ def test_malformed_yaml_raises_corpus_error(tmp_path: Path):
 
 def test_missing_required_field_raises(tmp_path: Path):
     incomplete = tmp_path / "incomplete.yaml"
-    incomplete.write_text("name: x\ncategory: y\n")  # no raw_question
+    incomplete.write_text("name: x\ncategory: y\n")  # no raw_formulation
     with pytest.raises(CorpusError):
         load_test_cases(tmp_path)
 
@@ -65,10 +65,10 @@ def test_missing_required_field_raises(tmp_path: Path):
 def test_load_test_cases_walks_recursively(tmp_path: Path):
     (tmp_path / "subdir").mkdir()
     (tmp_path / "subdir" / "a.yaml").write_text(
-        "name: a\ncategory: c\nraw_question: q\n"
+        "name: a\ncategory: c\nraw_formulation: q\n"
     )
     (tmp_path / "b.yml").write_text(
-        "name: b\ncategory: c\nraw_question: q\n"
+        "name: b\ncategory: c\nraw_formulation: q\n"
     )
     cases = load_test_cases(tmp_path)
     assert {c.name for c in cases} == {"a", "b"}

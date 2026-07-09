@@ -30,7 +30,7 @@ class TestCase(BaseModel):
 
     name: str
     category: str
-    raw_question: str
+    raw_formulation: str  # the user's raw problem formulation, of any type (question, decision, dilemma, belief, argument, goal, …)
     tags: list[str] = Field(default_factory=list)
     expected_properties: list[str] = Field(default_factory=list)
     expected_failure_modes: list[str] = Field(default_factory=list)

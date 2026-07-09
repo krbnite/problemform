@@ -5,7 +5,7 @@ tags:
   - api-design
   - architecture-decision
   - constraint-elicitation
-raw_question: >
+raw_formulation: >
   Should I use REST or GraphQL for my new API?
 expected_properties:
   - surfaces latent constraints (scale, team size, client mix)

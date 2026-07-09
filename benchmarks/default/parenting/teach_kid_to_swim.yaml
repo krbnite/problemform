@@ -5,7 +5,7 @@ tags:
   - parenting
   - context-elicitation
   - age-sensitive
-raw_question: >
+raw_formulation: >
   How do I teach my kid to swim?
 expected_properties:
   - elicits the child's age

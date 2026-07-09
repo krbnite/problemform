@@ -254,7 +254,7 @@ The `PROBLEMFORM_EVAL_*` variables are scoped to the evaluation framework. They 
 Per-case workflow:
 
 1. Refine the raw question via `problemform.core.workflow.run` (default `--max-iterations 1`).
-2. Generate `raw_answer = answer_provider.generate_text(raw_question)`.
+2. Generate `raw_answer = answer_provider.generate_text(raw_formulation)`.
 3. Generate `refined_answer = answer_provider.generate_text(refined_prompt)`.
 4. Run one position-randomized comparative judgment on the answer pair.
 5. Score any configured rubrics and property checks against the raw and refined subjects (see next).

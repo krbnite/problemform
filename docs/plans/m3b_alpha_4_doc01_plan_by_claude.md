@@ -157,7 +157,7 @@ data, not a suite.
   **every property runs against both subjects** (raw + refined) so
   `PropertyAggregate` can report `raw_pass_rate` vs `refined_pass_rate`.
 - Target routing for the subject text: `artifact` → the generated answers
-  (`raw_answer` / `refined_answer`); `formulation` → `raw_question` /
+  (`raw_answer` / `refined_answer`); `formulation` → `raw_formulation` /
   `refined_prompt`.
 
 ## 4. ⚠️ Polarity review — BLOCKING DECISION (needs user ruling)
@@ -199,7 +199,7 @@ has a clean default source independent of `expected_properties`.
   written. Faithful to the authoritative doc; ships knowingly-incoherent results
   on the default corpus, documented as a validation finding.
 - **(B) Intent-faithful — RECOMMENDED** — activate `expected_properties` as
-  **`target=formulation`** (evaluate against `refined_prompt` / `raw_question`).
+  **`target=formulation`** (evaluate against `refined_prompt` / `raw_formulation`).
   Matches what the strings actually mean and what the Constitution says we
   optimize (the formulation). Deviates from the design doc's literal word; log
   the deviation as a one-line design-doc amendment.
