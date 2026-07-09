@@ -302,23 +302,29 @@ Introduce per-lens error accounting so the report can distinguish M3A pipeline e
 
 ---
 
-## Bug: AnthropicProvider sends `system` as a string; API expects an array
+## Anthropic structured-output (JSON) reliability (minor, watch)
 
-### Problem
+### Observation
 
-Discovered during the M3B-α **H1** validation run (2026-07-08): every Anthropic call fails with `400 invalid_request_error: system: Input should be a valid array`. `AnthropicProvider` (`problemform/core/language_models.py`) passes the system prompt as a plain string, but the installed Anthropic SDK / API version expects `system` as an array of content blocks. This makes the Anthropic provider unusable in the current environment.
+During M3B-α **H2** validation (2026-07-09), one Anthropic structured-output call
+returned JSON that failed schema validation (`StructuredOutputError: ... did not
+match the output model`) — a single artifact-property check in the non-focused
+de-risk run. `AnthropicProvider.generate_structured` uses JSON-via-text (prompt the
+model for raw JSON, then `model_validate_json`), which is inherently less reliable
+than a native structured-output API. The formulation-rubric calls were reliable
+(30/30 across the 3 focused H2 runs), so this did not affect the H2 result.
 
-### Impact
+### Possible future work
 
-- H1 was run OpenAI-only. This did not invalidate H1 (it does not need Anthropic), so the provider was **not** modified during that task per instruction.
-- It **blocks cross-family judging** — the recommended bias mitigation for the comparative answer judge and for future comparative-mode rubrics. H2 and any calibration (#7) work that wants a cross-family judge are gated on this fix.
-
-### Fix direction
-
-Send `system` in the shape the SDK expects (either a bare string on a compatible SDK version, or `[{"type": "text", "text": <system>}]`), and add a provider test that exercises a real-shaped request against the installed SDK's types. Verify against `claude-sonnet-4-6` / `claude-haiku-4-5`. See [`docs/reports/m3b_alpha_validation_2026-07-08.md`](reports/m3b_alpha_validation_2026-07-08.md) *Environment caveats*.
+If Anthropic is used as a structured judge at larger scale, harden
+`generate_structured` — e.g. strip stray code fences / prose before parsing, or a
+single bounded retry on `ValidationError`. Not needed now; recorded so it is not a
+surprise later. Independent of the (now-fixed) `system`-param bug below.
 
 ---
 
 ## Resolved
+
+- **Bug: `AnthropicProvider` sent `system=None` to `messages.create`** — fixed in commit `7c43fae` and confirmed end-to-end by 3 clean M3B-α H2 runs (Anthropic-judged formulation rubric, 0 provider errors). Discovered during H1 validation: every Anthropic call 400'd with `system: Input should be a valid array`. Actual root cause (the original entry guessed string-vs-array): the provider passed `system=None`, which the SDK serialized as `system: null` and the API rejected. Since no ProblemForm caller ever sets `system`, this broke the provider entirely. Fix: build the `messages.create` kwargs and include `system` only when it is a non-empty string; regression tests assert the key is omitted when `None` and forwarded when provided. This unblocked the H2 cross-family judge (`claude-sonnet-4-6`).
 
 - **Benchmark Progress & Runtime Visibility** — implemented in commit `eb894c4` ("Add benchmark progress visibility"); GitHub issue [#3](https://github.com/krbnite/problemform/issues/3) closed. `benchmark` now renders a live Rich progress bar (M/N cases, current case + step, elapsed, ETA), prints per-step breadcrumb lines and case-completion lines for scrollback durability, and emits a per-case timing breakdown table on completion. All progress output goes to stderr; stdout remains usable for `--format json` piping.

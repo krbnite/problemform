@@ -1,9 +1,9 @@
 ---
-title: "M3B-α validation findings: H1 (Path B viability)"
+title: "M3B-α validation findings: H1 (Path B viability) + H2 (scope-agnostic mechanisms)"
 document_type: "report"
 status: "active"
 created: "2026-07-08"
-updated: "2026-07-08"
+updated: "2026-07-09"
 author: "Claude Code"
 authoritative_reference: "docs/designs/milestone_03b_rubrics_and_properties.md"
 related:
@@ -11,27 +11,38 @@ related:
     - "docs/designs/milestone_03b_rubrics_and_properties.md"
     - "docs/designs/problemform_scope.md"
     - "docs/plans/claudes-m3b-alpha-implementation-plan.md"
+    - "benchmarks/arguments/aquinas.yaml"
     - "docs/reports/m3b_alpha_h1_2026-07-08/report_run1.md"
     - "docs/reports/m3b_alpha_h1_2026-07-08/report_run2.md"
     - "docs/reports/m3b_alpha_h1_2026-07-08/report_run3.md"
+    - "docs/reports/m3b_alpha_h2_2026-07-09/report_run1.md"
+    - "docs/reports/m3b_alpha_h2_2026-07-09/report_run2.md"
+    - "docs/reports/m3b_alpha_h2_2026-07-09/report_run3.md"
   issues:
     - 12
 scope:
   inspected:
-    - ".problemform/eval_runs/h1_run1 (report.json/report.md)"
-    - ".problemform/eval_runs/h1_run2 (report.json/report.md)"
-    - ".problemform/eval_runs/h1_run3 (report.json/report.md)"
+    - ".problemform/eval_runs/h1_run1..3 (report.json/report.md)"
+    - ".problemform/eval_runs/h2f_run1..3 (report.json/report.md)"
 ---
 
-# M3B-α validation findings: H1 (Path B viability)
+# M3B-α validation findings: H1 (Path B viability) + H2 (scope-agnostic mechanisms)
 
-**Scope of this document.** This reports the **H1** validation experiment only.
-H1 asks whether *Path B* — judging the **formulation** directly with an absolute
-rubric — is a viable, meaningful signal. **H2** (mechanisms scope-agnostic; the
-non-question Aquinas probe) is **not** run here and remains pending; the
-consequent resolutions of **H3/H4** therefore also remain pending. The M3B design
-doc's hypothesis-resolution section should be updated once H2 completes, not from
-this document alone.
+**Scope of this document.** This reports **both** M3B-α validation experiments.
+**H1** (below) asks whether *Path B* — judging the **formulation** directly with an
+absolute rubric — is a viable, meaningful signal on question-shaped inputs. **H2**
+(added 2026-07-09, see "## H2 results") asks whether the mechanism is
+*scope-agnostic* — whether the same rubric produces coherent scores on a
+**non-question** input (the Aquinas argument) and distinguishes ProblemForm's
+refined formulation from the raw input. The combined hypothesis resolution (H1–H4)
+is at the end and is mirrored into the design doc's "Resolution of working
+hypotheses" section.
+
+> **Note on comparability.** H1 and H2 used **different rubric judges** — H1
+> `gpt-4o`, H2 `claude-sonnet-4-6` (cross-family, enabled by fixing the Anthropic
+> provider). Cross-experiment score *magnitudes* are therefore only qualitatively
+> comparable; each experiment's conclusion rests on its own within-run
+> raw-vs-refined contrast under a single judge.
 
 ## Setup
 
@@ -194,49 +205,152 @@ kind of useful" — low correlation meaning the lenses measure different things 
 partially present and is here interpreted as a *feature* (Path B isolates
 formulation quality), not a failure.
 
-## Implications for H2, H3, H4 (pending)
+## H2 results
 
-- **H2 (scope-agnostic mechanisms):** not tested here. H1 shows the rubric behaves
-  sensibly on question-shaped inputs; whether it produces coherent scores on a
-  non-question (the Aquinas argument probe) is the H2 experiment and must be run
-  before H3/H4 can resolve. **Blocker:** the Anthropic bug above must be fixed if
-  H2 is to use a cross-family judge; otherwise H2 can run OpenAI-only with the same
-  caveat as here.
-- **H3 (M3B-as-bridge strategically valuable):** a function of H1 ∧ H2. H1 holding
-  is necessary but not sufficient; still contingent on H2.
-- **H4 (issue ordering #8+#9 → #6 → #7):** the magnitude-divergence finding
-  strengthens the case for **#7 (calibration)** — the rubric floor is harsh on
-  bare-but-adequate questions (control raw = 0.00 across all runs), and the
-  disagreement thresholds are unstable at n=1. Calibration with both lenses
-  available is now concretely motivated by data.
+**Experiment.** Applied `formulation_quality_v1` to a single non-question input —
+the Aquinas argument (`benchmarks/arguments/aquinas.yaml`): a user pushing back on
+a friend's claim that Aquinas proves God's existence, with an implicit
+underdetermination argument. 3 runs, **cross-family**: ProblemForm + Answer
+`gpt-4.1`, rubric judge **`claude-sonnet-4-6`** (enabled by the Anthropic provider
+fix). The M3A answer comparison and the artifact-target property suite were
+**suppressed** (empty `--property-suite`) because neither is meaningful for a
+non-question — there is no natural downstream "answer" to an argument, so
+evaluating one is noise. This mirrors the roadmap's instruction to ignore the M3A
+comparison for the Aquinas case and keeps the run on H2's actual instrument, the
+formulation rubric. (An initial non-focused de-risk run confirmed the point: its
+only error was an artifact-property JSON-parse failure against the meaningless
+"answer", never a formulation-rubric failure.)
+
+**Execution health.** All 3 runs completed cleanly — `errors == []`, full rubric
+(5 criteria × raw + refined) populated by the Anthropic judge every run. This is
+the end-to-end confirmation of the Anthropic fix through the structured-output
+path: 30 Anthropic rubric-criterion calls across the 3 focused runs, 0 failures.
+
+### Check 1 — Coherence
+
+**Yes.** The rubric produced sensible, complete per-criterion scores on the
+argument-shaped input — no errors, no garbage. Notably the **raw** Aquinas argument
+already scores **0.45** (vs 0.00–0.30 for the bare *questions* in H1). This is
+coherent, not anomalous: an argument already carries a central claim, some
+assumptions, and framing, so the rubric correctly recognises pre-existing
+formulation structure that a bare question lacks. The rubric reads the *shape* of
+the input sensibly.
+
+### Check 2 — Discrimination (raw vs refined)
+
+| Run | raw | refined | Δ |
+|---|---|---|---|
+| 1 | 0.45 | 0.75 | +0.30 |
+| 2 | 0.45 | 0.75 | +0.30 |
+| 3 | 0.45 | 0.70 | +0.25 |
+| **mean** | **0.45** (stdev 0.000) | **0.73** (stdev 0.024) | **+0.28** |
+
+The refined formulation scores **higher than the raw argument in all 3 runs**
+(mean Δ +0.28, no sign flips). The raw score is **perfectly stable (stdev 0.000)** —
+the fixed input scored identically by the temp-0 Anthropic judge — which
+**replicates H1's rubric-determinism finding under a different judge family**,
+evidence the determinism is not a `gpt-4o` artifact.
+
+Per-criterion (mean over 3 runs):
+
+| Criterion | raw | refined | Δ |
+|---|---|---|---|
+| central_claim_clarity | 0.50 | 0.92 | +0.42 |
+| assumption_surfacing | 0.50 | 0.50 | +0.00 |
+| constraint_articulation | 0.25 | 0.58 | +0.33 |
+| alternative_framing_coverage | 0.50 | 0.67 | +0.17 |
+| meta_question_presence | 0.50 | 1.00 | +0.50 |
+
+ProblemForm most improves `meta_question_presence` and `central_claim_clarity` on
+the argument — it sharpens what the user is actually claiming and what would need
+settling. `assumption_surfacing` does **not** move (0.50 → 0.50), echoing H1's
+finding that this is the weakest-improving criterion — a consistent
+cross-experiment signal about what ProblemForm (or the rubric) does and does not
+add, reported as observed.
+
+## Resolution of H2, H3, H4 (combined with H1)
+
+Stated as the evidence supports, including the branches that would not affirm the
+bridge framing had the data gone the other way.
+
+**H2 (mechanisms scope-agnostic — coherent + discriminating on a non-question):
+SUPPORTED on the Aquinas argument probe.** Both checks passed under a cross-family
+judge: coherent scores (Check 1) and a stable positive raw→refined delta
+(Check 2). This is evidence for scope-agnosticism **on one input type (argument)** —
+not a general proof across all non-question types; decisions, beliefs, and dilemmas
+are untested. The outcomes that would have *failed* H2 — incoherent/erroring
+scores, or no raw-vs-refined distinction — did not occur. Had either occurred, H2
+would read "not supported" and H3 below would take the design doc's "H2 fails → M3B
+is a useful M3A supplement on questions but not a bridge" branch; it does not.
+
+**H3 (M3B-as-bridge strategically valuable = H1 ∧ H2): SUPPORTED on the tested
+cases, pending breadth.** With H1 holding on questions and H2 holding on the
+argument probe, M3B demonstrably does what M3A cannot — M3A has *no* leverage on the
+Aquinas input (no natural answer to compare), while the formulation rubric scores
+it coherently and registers ProblemForm's improvement. The broad strategic claim
+still rests on more non-question types (M3B-β corpus diversification, #6).
+
+**H4 (issue ordering #8+#9 → #6 → #7): retained / strengthened.** Both hypotheses
+holding on the tested cases supports proceeding to **#6** (diversify to more
+non-question types) with **#7** (calibration) after. The H1 calibration items —
+harsh rubric floor on bare questions (control raw = 0.00); disagreement-threshold
+instability — concretely motivate #7.
 
 ## Limitations
 
-- **n = 5 cases, K = 1 judgment per pair, 3 runs.** Below any significance
-  threshold; findings are directional.
-- **OpenAI-only, same-family judge** (Anthropic broken). Mitigated for H1 as argued
-  above, but a cross-family replication is warranted before load-bearing claims.
+- **Small samples, K = 1.** H1: 5 question cases × 3 runs. H2: **1** argument case
+  × 3 runs. Below any significance threshold; findings are directional.
+- **H2 covers one non-question *type* (argument).** Scope-agnosticism across
+  decisions, beliefs, and dilemmas is untested — that is M3B-β corpus
+  diversification (#6). H2 supports the mechanism on the argument shape, not
+  universally.
+- **H1 and H2 used different rubric judges** (`gpt-4o` vs `claude-sonnet-4-6`), so
+  cross-experiment score magnitudes are only qualitatively comparable. Each
+  experiment's conclusion rests on its own single-judge, within-run raw-vs-refined
+  contrast. Notably the rubric-determinism result (raw stdev ≈ 0) replicated across
+  *both* judge families.
+- **H1 same-family judge.** H1 ran OpenAI-only (answer + judge both OpenAI) because
+  the Anthropic provider was broken at the time; mitigated as argued in the H1
+  Environment caveats. The provider is now fixed and H2 used a cross-family judge; a
+  cross-family H1 replication was not run (out of scope) and remains a nice-to-have.
+- **Anthropic JSON-mode reliability (minor).** In the H2 de-risk run, one
+  artifact-property structured call returned JSON that failed validation
+  (`StructuredOutputError`). The formulation-rubric structured calls were reliable
+  (30/30 across the 3 focused runs). Worth watching if Anthropic is used as a
+  structured judge at larger scale; not a blocker here.
 - **Internal-consistency conflation:** re-running the whole benchmark mixes
   ProblemForm stochasticity into the refined-score variance. The raw-score column
-  isolates pure rubric determinism (and is near-zero variance); a future
-  rubric-only re-scoring harness (score one fixed formulation K times) would
+  isolates pure rubric determinism (near-zero variance in both experiments); a
+  future rubric-only re-scoring harness (score one fixed formulation K times) would
   isolate refined-side rubric variance directly.
 - **Rubric floor / possible structure bias:** bare questions score very low
   (control raw = 0.00). The control case is reassuring against pure verbosity bias
   (its *refined* form only reaches 0.05–0.30, i.e. the rubric does not over-reward
   elaboration of an already-adequate question), but the harsh floor on bare
-  questions is a calibration item for #7.
-- **Disagreement-flag instability** at n=1 (see Check 2).
+  questions is a calibration item for #7. The argument input scored a higher raw
+  floor (0.45), consistent with it carrying more formulation structure.
+- **Disagreement-flag instability** at n=1 (see H1 Check 2).
 
 ## Decisions / recommended next steps
 
-1. **Proceed to H2** (the Aquinas non-question probe) using the same focused
-   `--rubric formulation_quality_v1.yaml` config. Decide first whether to fix the
-   Anthropic provider (to enable a cross-family judge) or run H2 OpenAI-only.
-2. **Fix the `AnthropicProvider` `system`-as-array bug** before any cross-family
-   or calibration work (tracked as a discovered issue; not done under this task).
-3. **After H2**, update the hypothesis-resolution section of
-   `docs/designs/milestone_03b_rubrics_and_properties.md` with the combined H1+H2
-   outcome (H1 alone should not rewrite H3/H4).
-4. **Feed the calibration items** (rubric floor on bare questions; disagreement
-   thresholds `EPS_TIE`/`LARGE_DELTA`; K>1) into the reframed #7.
+Done in this validation pass:
+
+- ✅ **Fixed the `AnthropicProvider` system bug** (commit `7c43fae`), enabling the
+  cross-family H2 judge.
+- ✅ **Ran H2** on the Aquinas argument probe (cross-family, 3 clean runs).
+- ✅ **Mirrored the combined H1–H4 resolution** into the design doc's "Resolution
+  of working hypotheses" section.
+
+Recommended next:
+
+1. **Proceed to #6 (M3B-β corpus diversification):** add more non-question types
+   (decisions, beliefs, dilemmas) so H2/H3 breadth rests on more than one argument.
+   `benchmarks/arguments/` is the first-class home; add sibling type dirs.
+2. **Feed the calibration items into the reframed #7:** rubric floor on bare
+   questions; disagreement thresholds `EPS_TIE`/`LARGE_DELTA`; K > 1; and whether
+   the rubric should credit an argument's pre-existing structure differently.
+3. **Optional cross-family H1 replication** (rerun the question corpus with a
+   `claude-sonnet-4-6` judge) to confirm the H1 magnitude findings are not
+   `gpt-4o`-specific — the determinism result already replicated across families.
+4. **Watch Anthropic JSON-mode reliability** if using it as a structured judge at
+   larger scale.

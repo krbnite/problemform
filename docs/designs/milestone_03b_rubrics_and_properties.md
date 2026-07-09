@@ -3,7 +3,7 @@ title: "Milestone 3B design reference: rubrics, property checks, and the formula
 document_type: "design"
 status: "active"
 created: "2026-06-05"
-updated: "2026-07-08"
+updated: "2026-07-09"
 author: "Claude Code"
 authoritative_reference: "docs/problemform_constitution.md"
 related:
@@ -320,16 +320,52 @@ If H3 doesn't hold: previous ordering reasonable. M3B is layered onto M3A for qu
 
 ## Resolution of working hypotheses
 
-**At design pass closure (now):**
+**At design pass closure (2026-06-05):**
 
 - **H1.** Plausibility-resolved as plausible (the confound argument from the scope note is structurally sound). Empirical resolution awaits M3B-α implementation + validation experiment 1.
 - **H2.** Design-resolved as **yes**. The target axis is exposed as a first-class parameter in both rubric and property-check schemas; mechanisms are scope-agnostic by construction. Empirical resolution (does the rubric actually produce sensible scores on non-questions?) awaits M3B-α + validation experiment 2.
 - **H3.** Design-resolved as **conditionally yes** — M3B-as-bridge is adopted as the working framing for M3B-α, contingent on H1 and H2 empirically holding. If validation experiments invalidate either, this design pass's "bridge" framing should be revisited before M3B-β.
 - **H4.** Provisionally retained. M3B-α is the natural next implementation patch (it lands the framework). #6 reshapes (category diversity) become natural after M3B-α validates. #7 calibration becomes more interpretable with both lenses. If H1 or H2 falls in validation, the ordering reverts.
 
-**Pending empirical resolution (in M3B-α validation):**
+**Empirical update (2026-07-09, from the M3B-α validation runs).** Full findings and
+data in [`docs/reports/m3b_alpha_validation_2026-07-08.md`](../reports/m3b_alpha_validation_2026-07-08.md).
+Recorded as the evidence supports — including the branches that would *not* have
+affirmed the bridge framing, so the resolution is driven by the data rather than by
+the design's prior:
 
-H1 and H2 are pending; this design pass cannot resolve them by reasoning alone. The strongest claim this document makes is: the design is *constructed so that* H1 and H2 are testable. M3B-α is the patch that runs the test.
+- **H1 — empirically SUPPORTED for viability; Path B is complementary to, not
+  redundant with, M3A.** On the 5-case question corpus (3 runs, `gpt-4o` rubric
+  judge): the rubric is internally consistent (identical raw inputs scored with
+  stdev ≤ 0.04 at temperature 0; aggregate raw→refined delta stable at
+  +0.41/+0.41/+0.44; all 15 case-runs positive). It corroborates M3A on *direction*
+  but diverges on *magnitude* — the control case (formulation Δ ≈ +0.05 yet an M3A
+  material answer-win) is the scope-note confound made concrete, evidence Path B
+  isolates formulation quality that M3A cannot. The failure mode that would have
+  sunk H1 (an unstable, run-to-run-swinging rubric) did not occur.
+- **H2 — empirically SUPPORTED on the Aquinas argument probe (one non-question
+  type).** 3 clean cross-family runs (`gpt-4.1` answers, `claude-sonnet-4-6` rubric
+  judge): the rubric produced coherent per-criterion scores on the argument (raw
+  0.45 — a higher floor than bare questions, correctly reflecting the argument's
+  pre-existing structure) and distinguished the refined formulation from the raw
+  input in every run (mean Δ +0.28, no sign flips). Rubric determinism replicated
+  under a *different* judge family (raw stdev 0.000). This supports scope-
+  agnosticism on the **argument** shape; decisions, beliefs, and dilemmas remain
+  untested, so this is not yet a general result. Had the scores been incoherent or
+  shown no raw-vs-refined distinction, H2 would read "not supported" and H3 would
+  take the "useful M3A supplement on questions, but not a bridge" branch — it does
+  not.
+- **H3 — empirically SUPPORTED on the tested cases, pending breadth.** With H1
+  holding on questions and H2 holding on the argument probe, M3B does what M3A
+  cannot (M3A has no leverage on the Aquinas input — no natural answer). The broad
+  strategic claim still rests on more non-question types (M3B-β / #6).
+- **H4 — ordering retained/strengthened.** #8+#9 (framework) landed and validated;
+  proceed to **#6** (diversify to more non-question types) then **#7** (calibration,
+  now concretely motivated by the H1 rubric-floor and disagreement-threshold
+  findings).
+
+Two implementation notes surfaced during validation, tracked in `docs/backlog.md`:
+the `AnthropicProvider` `system`-param bug (fixed, commit `7c43fae`, which enabled
+the H2 cross-family judge), and a minor Anthropic JSON-mode reliability observation.
 
 ## Open questions for M3B-α implementation
 

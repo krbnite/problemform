@@ -1,0 +1,26 @@
+name: aquinas_narrative_designer
+category: argument
+raw_question: >
+  My friend seems to think Thomas Aquinas proves the existence of God without a
+  doubt. I argued that he's obviously creative and intelligent, but he's more
+  like a narrative designer than anything. His stuff is more poetic and
+  metaphorical than some people would like to accept. No disrespect to poetic,
+  metaphorical language: I myself am being somewhat fuzzy in my language. It's
+  just that I think another "Aquinas" type could fluff out their own details and
+  those details would likely diverge at parts, but in a way that still fits the
+  available evidence.
+tags:
+  - non_question
+  - argument
+  - m3b_alpha_h2
+expected_properties: []
+notes: >
+  First-class non-question benchmark case: an argument-shaped input. The user is
+  responding to a friend's claim that Aquinas proves God's existence, arguing
+  that Aquinas is "more narrative designer than rigorous prover", with an
+  implicit underdetermination argument ("another Aquinas type could fluff out
+  diverging details that still fit the evidence"). There is no natural downstream
+  "answer" here, only a formulation. Sourced verbatim from
+  docs/designs/problemform_scope.md ("A non-question input: the Aquinas case").
+  Added for M3B-alpha H2 validation and retained as a standing regression case
+  guarding the claim that ProblemForm evaluates formulations, not just questions.
