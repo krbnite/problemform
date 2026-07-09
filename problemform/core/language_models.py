@@ -223,15 +223,20 @@ class AnthropicProvider:
         system: str | None = None,
         temperature: float = 0.0,
     ) -> str:
-        message = self.client.messages.create(
-            model=self.model,
-            max_tokens=8000,
-            temperature=temperature,
-            system=system,
-            messages=[
-                {"role": "user", "content": prompt},
-            ],
-        )
+        # Only pass ``system`` when it is a non-empty string. Passing
+        # ``system=None`` makes the Anthropic SDK send ``system: null``, which the
+        # API rejects with ``400 invalid_request_error: system: Input should be a
+        # valid array``. Omitting the key entirely is the documented way to send
+        # no system prompt.
+        kwargs: dict = {
+            "model": self.model,
+            "max_tokens": 8000,
+            "temperature": temperature,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        if system:
+            kwargs["system"] = system
+        message = self.client.messages.create(**kwargs)
         return _extract_anthropic_text(message)
 
     def generate_structured(

@@ -150,6 +150,43 @@ def test_anthropic_provider_passes_specific_errors_through_generate_structured(f
         provider.generate_structured("prompt", _Echo)
 
 
+def test_anthropic_generate_text_omits_system_when_none(fake_keys, monkeypatch):
+    """Regression: ``system=None`` must not be sent to the API.
+
+    Passing ``system=None`` made the SDK serialize ``system: null``, which the
+    Anthropic API rejects (``400 ... system: Input should be a valid array``).
+    The provider must omit the key entirely when no system prompt is given.
+    """
+    provider = AnthropicProvider("claude-test")
+    calls: dict = {}
+
+    def fake_create(**kwargs):
+        calls.update(kwargs)
+        return _msg("end_turn", [_text_block("hello")])
+
+    monkeypatch.setattr(provider.client.messages, "create", fake_create)
+
+    out = provider.generate_text("hi")  # system defaults to None
+    assert out == "hello"
+    assert "system" not in calls
+    assert calls["messages"] == [{"role": "user", "content": "hi"}]
+
+
+def test_anthropic_generate_text_includes_system_when_provided(fake_keys, monkeypatch):
+    """When a system prompt is given, it is forwarded as-is."""
+    provider = AnthropicProvider("claude-test")
+    calls: dict = {}
+
+    def fake_create(**kwargs):
+        calls.update(kwargs)
+        return _msg("end_turn", [_text_block("ok")])
+
+    monkeypatch.setattr(provider.client.messages, "create", fake_create)
+
+    provider.generate_text("hi", system="be terse")
+    assert calls.get("system") == "be terse"
+
+
 # ---------- OpenAI response validation -------------------------------------
 
 
