@@ -1,0 +1,12 @@
+name: make_dinner_or_order_takeout
+category: decision
+raw_formulation: >
+  Should I make dinner tonight or order takeout?
+tags:
+  - decision
+  - m3b_beta
+expected_properties: []
+notes: >
+  A low-stakes everyday decision. Tests whether ProblemForm surfaces the
+  relevant constraints (time, budget, health, available ingredients, energy,
+  obligations, preferences, etc.) without overcomplicating a simple decision.

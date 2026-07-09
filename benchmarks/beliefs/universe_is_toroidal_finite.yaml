@@ -1,0 +1,14 @@
+name: universe_is_toroidal_and_finite
+category: belief
+raw_formulation: >
+  The universe is toroidal and finite in both time and space.
+tags:
+  - belief
+  - cosmology
+  - m3b_beta
+expected_properties: []
+notes: >
+  A scientific/cosmological claim presented as a belief. Tests whether
+  ProblemForm reformulates the statement into something investigable by
+  identifying definitions, empirical implications, assumptions, and competing
+  hypotheses.

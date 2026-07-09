@@ -1,0 +1,12 @@
+name: what_should_i_do_tomorrow
+category: decision
+raw_formulation: >
+  What should I do tomorrow?
+tags:
+  - decision
+  - m3b_beta
+expected_properties: []
+notes: >
+  An intentionally underspecified decision. Tests whether ProblemForm identifies
+  the missing context necessary to formulate a meaningful decision problem
+  rather than making arbitrary assumptions.

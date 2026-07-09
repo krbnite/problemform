@@ -1,0 +1,13 @@
+name: be_a_better_person
+category: goal
+raw_formulation: >
+  I want to be a better person.
+tags:
+  - goal
+  - personal_growth
+  - m3b_beta
+expected_properties: []
+notes: >
+  A highly abstract personal goal. Tests whether ProblemForm helps operationalize
+  vague aspirations into something more concrete and measurable by surfacing
+  definitions, values, and success criteria.

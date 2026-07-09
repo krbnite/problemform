@@ -1,0 +1,13 @@
+name: lose_30_pounds
+category: goal
+raw_formulation: >
+  I want to lose 30 pounds.
+tags:
+  - goal
+  - health
+  - m3b_beta
+expected_properties: []
+notes: >
+  A concrete personal goal with many possible strategies. Tests whether
+  ProblemForm identifies missing success criteria, constraints, motivation,
+  timeline, and context before recommending a plan.

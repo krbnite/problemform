@@ -1,0 +1,17 @@
+name: grandmother_alzheimers_identity
+category: dilemma
+raw_formulation: >
+  My grandmother has Alzheimer's and often thinks that I'm my mom (her
+  daughter). If I tell her who I am, I risk scaring her and breaking her heart,
+  but if I don't then I'm just living a lie with my grandma. What should I do?
+tags:
+  - dilemma
+  - ethics
+  - caregiving
+  - m3b_beta
+expected_properties: []
+notes: >
+  A caregiving dilemma balancing honesty against compassion and emotional
+  well-being. Tests whether ProblemForm identifies the competing values,
+  uncertainty, and contextual considerations without assuming a single correct
+  answer.

@@ -1,0 +1,14 @@
+name: jesus_is_the_son_of_god
+category: belief
+raw_formulation: >
+  Jesus is the son of God.
+tags:
+  - belief
+  - religion
+  - m3b_beta
+expected_properties: []
+notes: >
+  A declarative belief rather than a question. Tests whether ProblemForm can
+  transform a belief into an investigable formulation by surfacing assumptions,
+  definitions, evidence, and possible lines of inquiry without taking a
+  position on the belief itself.
