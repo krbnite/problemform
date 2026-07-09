@@ -1,0 +1,13 @@
+name: clean_my_bedroom
+category: instruction
+raw_formulation: >
+  Clean my bedroom.
+tags:
+  - instruction
+  - household
+  - m3b_beta
+expected_properties: []
+notes: >
+  A simple instruction with hidden standards. Tests whether ProblemForm clarifies
+  completion criteria, audience, acceptable level of detail, order of operations,
+  and what "clean" means in context.

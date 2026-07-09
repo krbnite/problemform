@@ -1,0 +1,15 @@
+name: clint_eastwood_memoir_rewrite
+category: prompt
+raw_formulation: >
+  When I give you a blob of text, rewrite it as if it were part of a Clint
+  Eastwood memoir.
+tags:
+  - prompt
+  - style_transfer
+  - m3b_beta
+expected_properties: []
+notes: >
+  A prompt for stylistic transformation. Tests whether ProblemForm clarifies the
+  desired voice, allowable imitation level, constraints, source-text handling,
+  tone, length, and whether the prompt should avoid over-specific living-person
+  or copyrighted-style imitation.

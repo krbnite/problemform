@@ -1,0 +1,14 @@
+name: online_bookstore_database
+category: specification
+raw_formulation: >
+  Design a database for an online bookstore.
+tags:
+  - specification
+  - software
+  - m3b_beta
+expected_properties: []
+notes: >
+  A system-design specification with many unstated requirements. Tests whether
+  ProblemForm clarifies entities, relationships, scale, query patterns,
+  inventory behavior, orders, users, reviews, edge cases, and non-functional
+  requirements.

@@ -1,0 +1,13 @@
+name: payment_api
+category: specification
+raw_formulation: >
+  Design an API that processes online payments.
+tags:
+  - specification
+  - software
+  - m3b_beta
+expected_properties: []
+notes: >
+  A broad software specification. Tests whether ProblemForm surfaces missing
+  requirements, security assumptions, payment methods, failure modes,
+  idempotency, compliance concerns, scalability, and integration constraints.

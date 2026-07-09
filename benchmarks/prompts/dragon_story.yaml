@@ -1,0 +1,13 @@
+name: dragon_story
+category: prompt
+raw_formulation: >
+  Write me a story about dragons.
+tags:
+  - prompt
+  - creative_writing
+  - m3b_beta
+expected_properties: []
+notes: >
+  A deliberately vague creative-writing prompt. Tests whether ProblemForm
+  clarifies audience, genre, tone, length, point of view, themes, constraints,
+  and what would make the output successful.

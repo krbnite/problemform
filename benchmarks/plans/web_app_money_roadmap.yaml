@@ -1,0 +1,16 @@
+name: web_app_money_roadmap
+category: plan
+raw_formulation: >
+  Create a web app that will make me money by (1) creating a roadmap, (2)
+  coding up each milestone one by one, (3) testing it after each milestone, (4)
+  using git/GitHub.
+tags:
+  - plan
+  - product
+  - m3b_beta
+expected_properties: []
+notes: >
+  A proposed implementation plan with vague business objective. Tests whether
+  ProblemForm surfaces missing assumptions, success criteria, market validation,
+  dependencies, risks, and whether the steps actually connect to the stated goal
+  of making money.

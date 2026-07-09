@@ -1,0 +1,13 @@
+name: web_app_money
+category: instruction
+raw_formulation: >
+  Create a web app that will make me money.
+tags:
+  - instruction
+  - product
+  - m3b_beta
+expected_properties: []
+notes: >
+  A vague task instruction. Tests whether ProblemForm clarifies the intended
+  output, constraints, business model, target users, success criteria, and
+  whether the instruction is actionable enough for an agent or developer.

@@ -1,0 +1,14 @@
+name: ml_career_transition
+category: plan
+raw_formulation: >
+  I want to switch careers into machine learning over the next year. First I'll
+  learn Python, then deep learning, then build a portfolio, then apply everywhere.
+tags:
+  - plan
+  - career
+  - m3b_beta
+expected_properties: []
+notes: >
+  A personal career-transition plan. Tests whether ProblemForm identifies
+  missing constraints, current skill baseline, target roles, portfolio strategy,
+  timeline realism, and feedback loops.

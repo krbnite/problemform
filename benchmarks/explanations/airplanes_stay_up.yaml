@@ -1,0 +1,13 @@
+name: airplanes_stay_up
+category: explanation
+raw_formulation: >
+  I don't understand why airplanes stay in the air.
+tags:
+  - explanation
+  - physics
+  - m3b_beta
+expected_properties: []
+notes: >
+  A broad explanatory request. Tests whether ProblemForm identifies the desired
+  explanation level, possible misconceptions, relevant mechanisms, and whether
+  the user wants intuition, equations, diagrams, or practical examples.

@@ -1,0 +1,14 @@
+name: curved_space_no_bending
+category: explanation
+raw_formulation: >
+  If space is curved then why don't I feel like I'm bending?
+tags:
+  - explanation
+  - physics
+  - m3b_beta
+expected_properties: []
+notes: >
+  A request for conceptual explanation with an intuitive confusion built in.
+  Tests whether ProblemForm clarifies the explanatory target, distinguishes
+  spatial curvature from bodily bending, identifies the audience level, and
+  preserves the user's underlying intuition.
