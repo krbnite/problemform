@@ -298,3 +298,43 @@ def test_disagreement_flags_tie_with_large_formulation_gain():
     case = _case_with_formulation_eval("c1", j, raw_score=0.40, refined_score=0.80)  # Δ=+0.40
     md = render_markdown(_report([case], _one_completed_agg()))
     assert "P3" in md
+
+
+# --- M3B-β.1: answer-lens skip rendering ------------------------------------
+
+
+def _tcr(**overrides):
+    base = dict(
+        test_case=TestCase(name="a", category="cat", raw_formulation="x"),
+        raw_prompt="x", refined_prompt="x", raw_answer="", refined_answer="",
+        comparative_judgment=None,
+    )
+    base.update(overrides)
+    return TestCaseResult(**base)
+
+
+def test_per_case_winner_materiality_matrix():
+    from problemform.eval.report import _per_case_winner_materiality
+    skipped_clean = _tcr(answer_comparison_applicable=False)
+    skipped_err = _tcr(answer_comparison_applicable=False, errors=["rubric x failed"])
+    applicable_failed = _tcr(answer_comparison_applicable=True)  # judgment None
+    applicable_done = _tcr(answer_comparison_applicable=True,
+                           comparative_judgment=_judgment("refined", "material"))
+    assert _per_case_winner_materiality(skipped_clean) == ("skipped", "—")
+    assert _per_case_winner_materiality(skipped_err) == ("skipped", "errored")
+    assert _per_case_winner_materiality(applicable_failed) == ("—", "errored")
+    assert _per_case_winner_materiality(applicable_done) == ("refined", "material")
+
+
+def test_headline_annotates_skips_and_degrades_when_all_skipped():
+    agg = AggregateMetrics(
+        n_cases=2, n_completed=0, n_errored=0, n_answer_skipped=2,
+        n_refined_wins=0, n_raw_wins=0, n_ties=0,
+        refined_win_rate=None, raw_win_rate=None, tie_rate=None,
+        material_improvement_rate=None, degradation_rate=None,
+    )
+    md = render_markdown(_report([], agg))
+    assert "Answer comparison skipped:** 2" in md
+    assert "answer-skipped: 2" in md              # sample line
+    assert "n/a" in md                             # M3A rates degrade
+    assert "Rubric evaluations" in md              # degrade note points to the rubric lens

@@ -71,7 +71,23 @@ def _headline(report: BenchmarkReport) -> str:
         f"| Material improvement rate | **{_fmt_pct(agg.material_improvement_rate)}** |",
         f"| Degradation rate | **{_fmt_pct(agg.degradation_rate)}** |",
         "",
-        f"**Sample:** n={agg.n_cases} (completed: {agg.n_completed}, errored: {agg.n_errored}).",
+    ]
+    if agg.n_answer_skipped:
+        lines.append(
+            f"**Answer comparison skipped:** {agg.n_answer_skipped} of {agg.n_cases} "
+            "cases (formulation-only by policy, or forced off)."
+        )
+    if agg.n_completed == 0:
+        # Graceful degradation: no M3A verdicts to headline — point at the
+        # formulation-rubric lens, which is this run's actual signal.
+        lines.append(
+            "_No answer-comparison verdicts in this run — the M3A rates above are "
+            "**n/a**. See the **Rubric evaluations** section for this run's signal._"
+        )
+    lines += [
+        "",
+        f"**Sample:** n={agg.n_cases} (completed: {agg.n_completed}, "
+        f"errored: {agg.n_errored}, answer-skipped: {agg.n_answer_skipped}).",
         "**Caveats:** K=1; sample size likely below any statistical significance threshold.",
     ]
     return "\n".join(lines)
@@ -115,6 +131,25 @@ def _runtime_section(report: BenchmarkReport) -> str:
     ])
 
 
+def _per_case_winner_materiality(r: TestCaseResult) -> tuple[str, str]:
+    """M3A answer-lens view of a case's Winner / Materiality columns (M3B-β.1).
+
+    The columns describe the answer lens only; PF/rubric/property errors surface in
+    the Errors section, not here (preserving the α.4 contract for completed cases).
+
+    | State | Winner | Materiality |
+    | skipped, clean | skipped | — |
+    | skipped, with non-M3A errors | skipped | errored |
+    | applicable, answer comparison failed | — | errored |
+    | applicable, completed (+/- rubric error) | winner_actual | materiality |
+    """
+    if not r.answer_comparison_applicable:
+        return "skipped", ("errored" if r.errors else "—")
+    if r.comparative_judgment is not None:
+        return r.comparative_judgment.winner_actual, r.comparative_judgment.materiality
+    return "—", "errored"
+
+
 def _per_case_table(report: BenchmarkReport) -> str:
     lines = [
         "## Per-case results",
@@ -123,11 +158,7 @@ def _per_case_table(report: BenchmarkReport) -> str:
         "|---|---|---|---|",
     ]
     for r in report.test_case_results:
-        if r.comparative_judgment is not None:
-            w = r.comparative_judgment.winner_actual
-            m = r.comparative_judgment.materiality
-        else:
-            w, m = "—", "errored"
+        w, m = _per_case_winner_materiality(r)
         lines.append(f"| {r.test_case.name} | {r.test_case.category} | {w} | {m} |")
     return "\n".join(lines)
 

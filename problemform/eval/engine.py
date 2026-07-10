@@ -45,6 +45,7 @@ from problemform.eval.models import (
     TestCase,
     TestCaseResult,
 )
+from problemform.eval.policy import answer_comparison_applies
 from problemform.eval.property_runner import run_property_check
 from problemform.eval.rubric_runner import run_rubric
 
@@ -63,6 +64,7 @@ ProgressStep = Literal[
     "raw_answer",
     "refined_answer",
     "comparative_judge",
+    "answer_comparison_skipped",
     "rubric_eval",
     "property_check",
 ]
@@ -194,7 +196,7 @@ def _run_property_both_subjects(
 def _run_one_case(
     case: TestCase,
     pf_provider: LLMProvider,
-    answer_provider: LLMProvider,
+    answer_provider: LLMProvider | None,
     judge_provider: LLMProvider,
     *,
     max_iterations: int,
@@ -202,6 +204,7 @@ def _run_one_case(
     rng: random.Random,
     rubrics: list[Rubric] | None = None,
     property_suites: list[PropertyCheck] | None = None,
+    answer_comparison_override: bool | None = None,
     case_index: int = 0,
     total: int = 1,
     on_progress: OnProgress | None = None,
@@ -214,6 +217,10 @@ def _run_one_case(
     refined_answer = ""
     judgment = None
     problem_state_path: str | None = None
+    # M3B-β.1: does the M3A answer-comparison lens apply to this case?
+    answer_applicable = answer_comparison_applies(
+        case.formulation_type, override=answer_comparison_override
+    )
 
     case_dir.mkdir(parents=True, exist_ok=True)
 
@@ -239,34 +246,42 @@ def _run_one_case(
     except Exception as exc:
         errors.append(f"problemform.run failed: {type(exc).__name__}: {exc}")
 
-    _emit("step", step="raw_answer")
-    try:
-        t0 = time.time()
-        raw_answer = answer_provider.generate_text(case.raw_formulation)
-        timing["raw_answer"] = time.time() - t0
-        (case_dir / "raw_answer.txt").write_text(raw_answer)
-    except Exception as exc:
-        errors.append(f"raw answer generation failed: {type(exc).__name__}: {exc}")
-
-    _emit("step", step="refined_answer")
-    try:
-        t0 = time.time()
-        refined_answer = answer_provider.generate_text(refined_prompt)
-        timing["refined_answer"] = time.time() - t0
-        (case_dir / "refined_answer.txt").write_text(refined_answer)
-    except Exception as exc:
-        errors.append(f"refined answer generation failed: {type(exc).__name__}: {exc}")
-
-    if not errors:
-        _emit("step", step="comparative_judge")
+    # M3A answer-comparison lens — skipped entirely for formulation-only types
+    # (or when forced off via the CLI override). A skipped case generates no
+    # answers, makes no judge call, and touches no answer provider.
+    if answer_applicable:
+        _emit("step", step="raw_answer")
         try:
             t0 = time.time()
-            judgment = judge_answers(
-                judge_provider, case.raw_formulation, raw_answer, refined_answer, rng=rng
-            )
-            timing["judge"] = time.time() - t0
+            raw_answer = answer_provider.generate_text(case.raw_formulation)
+            timing["raw_answer"] = time.time() - t0
+            (case_dir / "raw_answer.txt").write_text(raw_answer)
         except Exception as exc:
-            errors.append(f"judge failed: {type(exc).__name__}: {exc}")
+            errors.append(f"raw answer generation failed: {type(exc).__name__}: {exc}")
+
+        _emit("step", step="refined_answer")
+        try:
+            t0 = time.time()
+            refined_answer = answer_provider.generate_text(refined_prompt)
+            timing["refined_answer"] = time.time() - t0
+            (case_dir / "refined_answer.txt").write_text(refined_answer)
+        except Exception as exc:
+            errors.append(f"refined answer generation failed: {type(exc).__name__}: {exc}")
+
+        if not errors:
+            _emit("step", step="comparative_judge")
+            try:
+                t0 = time.time()
+                judgment = judge_answers(
+                    judge_provider, case.raw_formulation, raw_answer, refined_answer, rng=rng
+                )
+                timing["judge"] = time.time() - t0
+            except Exception as exc:
+                errors.append(f"judge failed: {type(exc).__name__}: {exc}")
+    else:
+        # Distinct progress breadcrumb so a policy skip is not mistaken for a clean
+        # M3A completion (or an error).
+        _emit("step", step="answer_comparison_skipped")
 
     # --- M3B rubric + property lenses ---
     # Run independently of the M3A judge gate: formulation-target evaluation
@@ -320,6 +335,7 @@ def _run_one_case(
         raw_answer=raw_answer,
         refined_answer=refined_answer,
         comparative_judgment=judgment,
+        answer_comparison_applicable=answer_applicable,
         errors=errors,
         timing=timing,
         rubric_evaluations=rubric_evaluations,
@@ -353,14 +369,20 @@ def _aggregate_runtime(results: list[TestCaseResult]) -> AggregateRuntime:
 
 def _aggregate(results: list[TestCaseResult]) -> AggregateMetrics:
     n_cases = len(results)
-    # M3A completion is gated on the comparative judgment alone, NOT on
-    # ``r.errors``. The judge only runs when the PF/answer steps succeeded, so a
-    # present judgment already implies those steps were clean. Rubric/property
-    # lens failures (which append to ``errors`` afterward) must not retroactively
-    # drop a case from the M3A scoreboard — the three lenses are independent.
-    completed = [r for r in results if r.comparative_judgment is not None]
+    # M3B-β.1: three mutually-exclusive answer-lens buckets, decided by answer-lens
+    # status ONLY (rubric/property errors never move a case between them):
+    #   n_completed      = applicable & comparative judgment present
+    #   n_errored        = applicable & judgment did not complete
+    #   n_answer_skipped = not applicable (formulation-only / CLI override)
+    # so n_cases == n_completed + n_errored + n_answer_skipped. This preserves the
+    # α.4 contract: an applicable, completed case with a rubric/property failure stays
+    # n_completed (its error remains visible in errors[] / the Errors section). When
+    # every case is applicable (legacy), this reduces to the prior α.4 behavior.
+    applicable = [r for r in results if r.answer_comparison_applicable]
+    completed = [r for r in applicable if r.comparative_judgment is not None]
     n_completed = len(completed)
-    n_errored = n_cases - n_completed
+    n_answer_skipped = sum(1 for r in results if not r.answer_comparison_applicable)
+    n_errored = len(applicable) - n_completed
 
     n_refined_wins = sum(1 for r in completed if r.comparative_judgment.winner_actual == "refined")
     n_raw_wins = sum(1 for r in completed if r.comparative_judgment.winner_actual == "raw")
@@ -383,6 +405,7 @@ def _aggregate(results: list[TestCaseResult]) -> AggregateMetrics:
         n_cases=n_cases,
         n_completed=n_completed,
         n_errored=n_errored,
+        n_answer_skipped=n_answer_skipped,
         n_refined_wins=n_refined_wins,
         n_raw_wins=n_raw_wins,
         n_ties=n_ties,
@@ -467,13 +490,14 @@ def _aggregate_properties(results: list[TestCaseResult]) -> dict[str, PropertyAg
 def run_benchmark(
     cases: list[TestCase],
     pf_provider: LLMProvider,
-    answer_provider: LLMProvider,
+    answer_provider: LLMProvider | None,
     judge_provider: LLMProvider,
     *,
     output_dir: Path,
     max_iterations: int = 1,
     rubrics: list[Rubric] | None = None,
     property_suites: list[PropertyCheck] | None = None,
+    answer_comparison_override: bool | None = None,
     config: dict | None = None,
     bias_warnings: list[str] | None = None,
     rng: random.Random | None = None,
@@ -486,10 +510,26 @@ def run_benchmark(
     NOT written here; callers (typically the CLI) handle ``report.json`` /
     ``report.md`` persistence.
 
+    ``answer_provider`` may be ``None`` when no case will use the M3A
+    answer-comparison lens (all formulation-only, or ``answer_comparison_override``
+    is ``False``). If any case *is* answer-applicable while ``answer_provider`` is
+    ``None``, a ``ValueError`` is raised up front — a clear error for direct-API
+    callers rather than an ``AttributeError`` deep in execution.
+
     If ``on_progress`` is provided, structured ``ProgressEvent``s are emitted
     at run start, case start, each sub-step transition, case completion or
     error, and run completion. When ``None``, no events are produced.
     """
+    if answer_provider is None and any(
+        answer_comparison_applies(c.formulation_type, override=answer_comparison_override)
+        for c in cases
+    ):
+        raise ValueError(
+            "answer_provider is required: at least one case is answer-applicable "
+            "under the current policy/override. Pass an answer provider, or force the "
+            "answer-comparison lens off (answer_comparison_override=False)."
+        )
+
     rng = rng or random.Random()
     started_at = _now()
     output_dir = Path(output_dir)
@@ -514,6 +554,7 @@ def run_benchmark(
             rng=rng,
             rubrics=rubrics,
             property_suites=property_suites,
+            answer_comparison_override=answer_comparison_override,
             case_index=i,
             total=total,
             on_progress=on_progress,

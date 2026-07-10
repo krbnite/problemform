@@ -342,6 +342,11 @@ def benchmark(
              "shipped default suites when given. (Per-case expected_properties "
              "always activate regardless of this flag.)",
     ),
+    answer_comparison: bool | None = typer.Option(
+        None, "--answer-comparison/--no-answer-comparison",
+        help="Force the M3A answer-comparison lens on/off for all cases "
+             "(default: per-formulation-type policy).",
+    ),
     max_iterations: int = typer.Option(1, "--max-iterations", min=1),
     output: Path = typer.Option(
         None, "--output",
@@ -373,6 +378,7 @@ def benchmark(
         load_default_rubrics,
     )
     from problemform.eval.engine import _detect_same_family, run_benchmark
+    from problemform.eval.policy import answer_comparison_applies
     from problemform.eval.report import write_run
 
     try:
@@ -414,19 +420,35 @@ def benchmark(
     judge_provider = judge_provider or os.environ.get("PROBLEMFORM_EVAL_JUDGE_PROVIDER")
     judge_model = judge_model or os.environ.get("PROBLEMFORM_EVAL_JUDGE_MODEL")
 
+    # M3B-β.1: only build the answer provider when at least one case will use the
+    # M3A answer-comparison lens (per-type policy, honoring the CLI override). A
+    # wholly formulation-only corpus (or --no-answer-comparison) needs no answer
+    # provider and emits no same-family warning. Providers are built in the
+    # pf → answer → judge order.
+    will_run_answer_lens = any(
+        answer_comparison_applies(c.formulation_type, override=answer_comparison)
+        for c in cases
+    )
+
     pf_provider_obj = _make_provider_or_die(pf_provider, pf_model)
-    answer_provider_obj = _make_provider_or_die(answer_provider, answer_model)
+    if will_run_answer_lens:
+        answer_provider_obj = _make_provider_or_die(answer_provider, answer_model)
+        answer_provider_name = answer_provider_obj.__class__.__name__
+        answer_provider_model = answer_provider_obj.model
+    else:
+        answer_provider_obj = None
+        answer_provider_name = answer_provider_model = "not_used"
     judge_provider_obj = _make_provider_or_die(judge_provider, judge_model)
 
-    # Same-provider judge warning (warn-only per Phase A decision).
     bias_warnings: list[str] = []
-    warn = _detect_same_family(
-        answer_provider_obj.__class__.__name__, answer_provider_obj.model,
-        judge_provider_obj.__class__.__name__, judge_provider_obj.model,
-    )
-    if warn:
-        err.print(f"[yellow]warning:[/yellow] {warn}")
-        bias_warnings.append(warn)
+    if will_run_answer_lens:
+        warn = _detect_same_family(
+            answer_provider_obj.__class__.__name__, answer_provider_obj.model,
+            judge_provider_obj.__class__.__name__, judge_provider_obj.model,
+        )
+        if warn:
+            err.print(f"[yellow]warning:[/yellow] {warn}")
+            bias_warnings.append(warn)
 
     if output is None:
         from datetime import datetime, timezone
@@ -436,13 +458,18 @@ def benchmark(
     config = {
         "pf_provider": pf_provider_obj.__class__.__name__,
         "pf_model": pf_provider_obj.model,
-        "answer_provider": answer_provider_obj.__class__.__name__,
-        "answer_model": answer_provider_obj.model,
+        "answer_provider": answer_provider_name,
+        "answer_model": answer_provider_model,
         "judge_provider": judge_provider_obj.__class__.__name__,
         "judge_model": judge_provider_obj.model,
         "max_iterations": max_iterations,
         "position_randomized": True,
         "judgments_per_pair": 1,
+        "answer_comparison": (
+            "forced_on" if answer_comparison is True
+            else "forced_off" if answer_comparison is False
+            else "per_type_policy"
+        ),
     }
 
     err.print(f"[dim]Running benchmark over {len(cases)} cases; output: {output}")
@@ -524,6 +551,7 @@ def benchmark(
             max_iterations=max_iterations,
             rubrics=rubrics,
             property_suites=property_suites,
+            answer_comparison_override=answer_comparison,
             config=config,
             bias_warnings=bias_warnings,
             on_progress=on_progress,

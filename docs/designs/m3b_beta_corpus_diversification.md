@@ -3,7 +3,7 @@ title: "M3B-β design: corpus diversification and formulation-type generalizatio
 document_type: "design"
 status: "draft"
 created: "2026-07-09"
-updated: "2026-07-09"
+updated: "2026-07-10"
 author: "Claude Code"
 authoritative_reference: "docs/problemform_constitution.md"
 related:
@@ -382,6 +382,17 @@ Ordered by how much they block clean β work:
    instructions/prompts/explanations count as "answerable" (artifact = the executed
    output) for the answer lens and answer-side rubrics? This sets the registry's
    answer-lens column.
+   > **Resolved (M3B-β.1, 2026-07-10).** Criterion: a type is *answerable* when the
+   > refinement naturally induces a downstream response/artifact **whose quality we
+   > care about**. **Answerable:** `question`, `explanation`, `instruction`, `prompt`,
+   > **`specification`**. **Formulation-only:** `argument`, `belief`, `decision`,
+   > `dilemma`, `goal`, `plan`. `unspecified`/unknown → answerable (legacy);
+   > overridable via `--[no-]answer-comparison`. This is the authoritative policy,
+   > encoded in `problemform/eval/policy.py` and
+   > `docs/plans/m3b_beta_1_plan_by_claude.md`. **Note:** it supersedes the earlier
+   > wording in this document (e.g. §Q2/Q4) that grouped `specification` among inputs
+   > "without a natural downstream answer" — β.1 intentionally treats a specification
+   > as answerable (the induced implementation is the artifact whose quality matters).
 5. **Multi-type run reporting.** When one `benchmark` run spans several types, is the
    report per-type-sectioned, or one flat report with a type column? (Leaning
    per-type sections.)

@@ -374,6 +374,127 @@ def test_on_progress_emits_case_errored_on_judge_failure(tmp_path: Path):
 import pytest  # placed at end to avoid noise above
 
 
+# --- M3B-β.1: answer-lens gating --------------------------------------------
+
+
+def _typed_case(name: str, ftype: str) -> TestCase:
+    return TestCase(name=name, category="cat", raw_formulation="x", formulation_type=ftype)
+
+
+class _RubricFailingJudgeStub(_JudgeStub):
+    """Judge that fails only rubric-criterion calls; comparative/property succeed."""
+
+    def generate_structured(self, prompt, output_model, **kw):
+        if "raw_score" in set(output_model.model_fields):
+            raise RuntimeError("rubric boom")
+        return super().generate_structured(prompt, output_model, **kw)
+
+
+def test_formulation_only_case_skips_answer_lens(tmp_path: Path):
+    answer = _AnswerStub()
+    report = run_benchmark(
+        [_typed_case("d", "decision")], pf_provider=_PFStub(), answer_provider=answer,
+        judge_provider=_JudgeStub(), output_dir=tmp_path, max_iterations=1,
+        rubrics=[_formulation_rubric()], rng=random.Random(0),
+    )
+    r = report.test_case_results[0]
+    assert r.answer_comparison_applicable is False
+    assert r.comparative_judgment is None
+    assert answer.calls == []                                   # no answer-provider calls
+    assert not (tmp_path / "cases" / "d" / "raw_answer.txt").exists()
+    assert not (tmp_path / "cases" / "d" / "refined_answer.txt").exists()
+    assert r.rubric_evaluations                                  # formulation rubric still ran
+    assert report.aggregate.n_answer_skipped == 1
+    assert report.aggregate.n_completed == 0
+    assert report.aggregate.n_errored == 0
+    assert report.aggregate.n_cases == 1
+
+
+def test_answerable_case_runs_answer_lens(tmp_path: Path):
+    answer = _AnswerStub()
+    report = run_benchmark(
+        [_typed_case("q", "question")], pf_provider=_PFStub(), answer_provider=answer,
+        judge_provider=_JudgeStub(), output_dir=tmp_path, max_iterations=1,
+        rng=random.Random(0),
+    )
+    r = report.test_case_results[0]
+    assert r.answer_comparison_applicable is True
+    assert r.comparative_judgment is not None
+    assert len(answer.calls) == 2
+    assert report.aggregate.n_completed == 1
+    assert report.aggregate.n_answer_skipped == 0
+
+
+def test_override_forces_answer_lens_on_and_off(tmp_path: Path):
+    on = _AnswerStub()
+    rep_on = run_benchmark(
+        [_typed_case("d", "decision")], pf_provider=_PFStub(), answer_provider=on,
+        judge_provider=_JudgeStub(), output_dir=tmp_path / "on", max_iterations=1,
+        answer_comparison_override=True, rng=random.Random(0),
+    )
+    assert rep_on.test_case_results[0].answer_comparison_applicable is True
+    assert len(on.calls) == 2
+
+    off = _AnswerStub()
+    rep_off = run_benchmark(
+        [_typed_case("q", "question")], pf_provider=_PFStub(), answer_provider=off,
+        judge_provider=_JudgeStub(), output_dir=tmp_path / "off", max_iterations=1,
+        answer_comparison_override=False, rng=random.Random(0),
+    )
+    assert rep_off.test_case_results[0].answer_comparison_applicable is False
+    assert off.calls == []
+
+
+def test_run_benchmark_requires_answer_provider_when_applicable(tmp_path: Path):
+    with pytest.raises(ValueError, match="answer_provider is required"):
+        run_benchmark(
+            [_typed_case("q", "question")], pf_provider=_PFStub(), answer_provider=None,
+            judge_provider=_JudgeStub(), output_dir=tmp_path, max_iterations=1,
+            rng=random.Random(0),
+        )
+
+
+def test_run_benchmark_allows_none_answer_provider_when_all_skipped(tmp_path: Path):
+    rep = run_benchmark(
+        [_typed_case("d", "decision")], pf_provider=_PFStub(), answer_provider=None,
+        judge_provider=_JudgeStub(), output_dir=tmp_path, max_iterations=1,
+        rubrics=[_formulation_rubric()], rng=random.Random(0),
+    )
+    assert rep.aggregate.n_answer_skipped == 1
+
+
+def test_alpha4_contract_completed_with_rubric_error_stays_completed(tmp_path: Path):
+    rep = run_benchmark(
+        [_typed_case("q", "question")], pf_provider=_PFStub(), answer_provider=_AnswerStub(),
+        judge_provider=_RubricFailingJudgeStub(), output_dir=tmp_path, max_iterations=1,
+        rubrics=[_formulation_rubric()], rng=random.Random(0),
+    )
+    r = rep.test_case_results[0]
+    assert r.comparative_judgment is not None            # M3A verdict completed
+    assert any("rubric" in e for e in r.errors)          # rubric error still visible
+    assert rep.aggregate.n_completed == 1                 # α.4: not moved to errored
+    assert rep.aggregate.n_errored == 0
+    assert rep.aggregate.n_answer_skipped == 0
+
+
+def test_skipped_case_with_errors_stays_skipped_but_visibly_errored(tmp_path: Path):
+    events: list = []
+    rep = run_benchmark(
+        [_typed_case("d", "decision")], pf_provider=_PFStub(), answer_provider=None,
+        judge_provider=_RubricFailingJudgeStub(), output_dir=tmp_path, max_iterations=1,
+        rubrics=[_formulation_rubric()], rng=random.Random(0), on_progress=events.append,
+    )
+    r = rep.test_case_results[0]
+    assert r.answer_comparison_applicable is False
+    assert any("rubric" in e for e in r.errors)
+    assert rep.aggregate.n_answer_skipped == 1           # stays in the skipped bucket
+    assert rep.aggregate.n_completed == 0 and rep.aggregate.n_errored == 0
+    kinds = [e.kind for e in events]
+    steps = [e.step for e in events if e.kind == "step"]
+    assert "case_errored" in kinds                        # visibly errored
+    assert "answer_comparison_skipped" in steps           # distinct skip breadcrumb
+
+
 # --- M3B-α.4: rubric + property integration ---------------------------------
 
 

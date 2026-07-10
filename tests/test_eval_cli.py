@@ -169,3 +169,28 @@ def test_benchmark_explicit_rubric_overrides_defaults(runner, monkeypatch, tmp_p
     report = BenchmarkReport.model_validate_json((tmp_path / "run" / "report.json").read_text())
     assert set(report.aggregate_rubrics) == {"custom_rubric_x"}
     assert "formulation_quality_v1" not in report.aggregate_rubrics
+
+
+def test_benchmark_no_answer_comparison_builds_no_answer_provider(runner, monkeypatch, tmp_path: Path):
+    """--no-answer-comparison over the (answerable) default suite must skip the answer
+    lens, build no answer provider, emit no same-family warning, and record 'not_used'."""
+    pf = _PFStub()
+    judge = _JudgeStub()
+    queue = [pf, judge]  # only pf + judge should be constructed (no answer provider)
+    monkeypatch.setattr(cli_module, "make_provider", lambda *a, **kw: queue.pop(0))
+
+    result = runner.invoke(
+        app,
+        ["benchmark", str(SUITE), "--no-answer-comparison",
+         "--output", str(tmp_path / "run"), "--format", "json"],
+    )
+    assert result.exit_code == 0, result.stderr
+    assert queue == []  # exactly pf + judge consumed; no third (answer) construction
+    report = BenchmarkReport.model_validate_json((tmp_path / "run" / "report.json").read_text())
+    assert report.aggregate.n_answer_skipped == 5
+    assert report.aggregate.n_completed == 0
+    assert report.config["answer_provider"] == "not_used"
+    assert report.config["answer_model"] == "not_used"
+    assert report.config["answer_comparison"] == "forced_off"
+    combined = (result.stderr or "") + (result.output or "")
+    assert "self-preference" not in combined
