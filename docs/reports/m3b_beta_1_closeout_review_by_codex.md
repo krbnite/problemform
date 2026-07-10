@@ -38,9 +38,15 @@ scope:
 
 The M3B-β.1 implementation is architecturally sound and matches the approved plan in the core code paths. The new `FormulationPolicy` registry is the right abstraction for β.1 and future β.2 extension. The engine gates the M3A answer-comparison lens by formulation type, preserves answerable and `unspecified` legacy behavior, keeps skipped cases distinct from answer-lens errors, and preserves the M3B-α.4 aggregate contract that rubric/property errors do not invalidate a completed M3A verdict.
 
-I found no correctness bug in the implementation that should block the code from being accepted. The main closure blocker is documentation consistency: current user-facing benchmark docs and CLI help still describe the answer lens as if it always runs and answer artifacts always exist. That contradicts β.1 behavior and should be reconciled before formally closing the milestone.
+I found no correctness bug in the implementation that should block the code from being accepted. The original closure blocker was documentation consistency: user-facing benchmark docs and CLI help still described the answer lens as if it always ran and answer artifacts always existed. That contradicted β.1 behavior and needed reconciliation before formally closing the milestone.
 
-## Must Fix Before β.1 Closure
+## Current Status
+
+**Codex re-review status (2026-07-10): Approve closure of M3B-β.1.**
+
+The documentation blocker identified in the original review was resolved by commit `83b3423` (`docs: reconcile user-facing benchmark docs with β.1 answer-lens gating`). I independently reviewed the patch and reran the test suite. The remaining observations are non-blocking and fit future cleanup.
+
+## Must Fix Before β.1 Closure (Original Review)
 
 1. **User-facing benchmark docs/help still describe the pre-β.1 always-answer workflow.**
 
@@ -163,3 +169,26 @@ Deferred (Codex Should Fix #2/#3, non-blocking): distinguishing "all skipped" fr
 local invariant assertion in `_run_one_case`. Recorded for a future pass.
 
 **M3B-β.1 documentation reconciliation complete — the milestone is ready to close.**
+
+---
+
+## Codex Addendum (2026-07-10)
+
+I independently reviewed commit `83b3423` after Claude addressed the documentation blocker.
+
+Verified:
+
+- `README.md` now documents answer-lens gating, the answerable/formulation-only type split, force-on/force-off CLI flags, lazy answer-provider construction, and conditional answer artifacts.
+- `docs/cli_commands.md` now includes `--answer-comparison | --no-answer-comparison`, describes the gated per-case workflow, documents `n_answer_skipped`/`not_used`, scopes same-family warnings to runs where the answer lens actually runs, and marks answer artifacts as answer-applicable only.
+- `problemform benchmark --help` now explains the answerable/formulation-only split and the override flags.
+- `benchmarks/README.md` now documents `formulation_type` as controlling answer-lens applicability and corrects `expected_properties` to the M3B-α.4 behavior: activated formulation-target property checks.
+- Permanent CLI tests now cover the omitted-override all-skipped decisions suite and `--answer-comparison` force-on over that same formulation-only suite.
+
+Verification command:
+
+- `.conda/bin/python -m pytest -q -p no:cacheprovider`
+  - Result: `260 passed in 2.25s`.
+
+No remaining Must Fix items for β.1 closure were found. The two remaining Should Fix items from the original review — more precise all-error/no-verdict report wording and an optional local invariant assertion in `_run_one_case` — remain non-blocking cleanup.
+
+**Final Codex status: Approve closure of M3B-β.1.**
