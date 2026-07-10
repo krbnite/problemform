@@ -295,7 +295,7 @@ Reuses the existing Typer app.
 ### `problemform benchmark <suite>`  **[APPROVED — Phase A]**
 
 ```
-problemform benchmark benchmarks/default \
+problemform benchmark benchmarks/cases/questions \
     [--pf-provider openai] [--pf-model gpt-5.4]                     \
     [--answer-provider anthropic] [--answer-model claude-sonnet-4-6]\
     [--judge-provider openai]   [--judge-model gpt-5.4]             \
@@ -454,7 +454,7 @@ Smallest cut that produces a defensible headline number.
 - Tests: schema parsing, position randomization, full pipeline against stubs, failure containment.
 - Documented bias caveats in the report.
 
-**Deliverable**: `problemform benchmark benchmarks/default` produces a JSON+MD report whose headline is "refined-answer win rate, raw-answer win rate, ties, material improvement, degradation."
+**Deliverable**: `problemform benchmark benchmarks/cases/questions` produces a JSON+MD report whose headline is "refined-answer win rate, raw-answer win rate, ties, material improvement, degradation."
 
 ### Phase B — Levels 1, 2, 3 layered on  **[DEFERRED]**
 
@@ -523,7 +523,7 @@ These apply across all phases.
 These were open during the design process and have been resolved. Recording them here so future readers don't re-litigate.
 
 1. **Same-provider judge policy**: **warn loudly, do not block**. Blocking was considered and rejected as too annoying for MVP. Warning surfaces in stderr and in `BenchmarkReport.bias_warnings`.
-2. **Starter corpus**: **5 hand-picked cases**, including 1 explicit control case, shipped under `benchmarks/default/`.
+2. **Starter corpus**: **5 hand-picked cases**, including 1 explicit control case, shipped under `benchmarks/cases/questions/`.
 3. **`benchmarks/` location**: **repo root**. User content, not library code.
 4. **Results directory**: **`.problemform/eval_runs/`**. Gitignored, namespaced for future run types.
 5. **`max_iterations` default for the per-case PF run**: **1**. Cheap, headline-friendly. Higher counts opt-in.

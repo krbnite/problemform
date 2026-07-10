@@ -9,7 +9,7 @@ from problemform.eval.corpus import (
     load_test_cases,
 )
 
-DEFAULT_SUITE = Path(__file__).parent.parent / "benchmarks" / "default"
+DEFAULT_SUITE = Path(__file__).parent.parent / "benchmarks" / "cases" / "questions"
 
 
 def test_starter_corpus_loads_all_five_cases():

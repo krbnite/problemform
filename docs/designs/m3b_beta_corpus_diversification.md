@@ -259,8 +259,8 @@ controlled vocabulary to `TestCase`; decide `category`'s fate (topic/domain vs
 retire); backfill `formulation_type` on all corpus cases; fix the corpus README /
 schema "question" wording; dedupe cross-suite case names; decide the scope of the
 `prompt → formulation` field migration (`raw_prompt`/`refined_prompt`/`final_prompt`)
-and whether to rename `benchmarks/default/ → questions/`. Land as data/docs +
-model-field additions with backward-compatible defaults.
+and whether to rename the question suite `default/ → questions/` (since done — see §Q7
+resolution). Land as data/docs + model-field additions with backward-compatible defaults.
 
 ### β.1 — Type-awareness + answer-lens gating · **ESSENTIAL**
 Introduce the type → evaluation-policy registry (`eval/policy.py` or extend
@@ -347,8 +347,12 @@ Ordered by how much they block clean β work:
    lens is absent (β.1).
 6. **Corpus README / schema still say "question".** Update to type-neutral language
    and document `formulation_type` (β.0).
-7. **`benchmarks/default/` naming.** Rename to `questions/` for taxonomic consistency
-   with the type dirs (deferred cleanup; fits β.0). Touches tests/docs/report refs.
+7. **Question-suite directory naming (`default/` → `questions/`).** Rename for taxonomic
+   consistency with the type dirs (deferred cleanup; fits β.0). Touches tests/docs/report refs.
+   > **Resolved (2026-07-10):** done as part of the benchmarks reorganization — the
+   > canonical corpus now lives under `benchmarks/cases/` (with `default/` → `questions/`),
+   > and `rubrics/` / `properties/` are siblings, so `benchmark benchmarks/cases`
+   > runs exactly the canonical corpus.
 8. **Duplicate case names across suites** (`what_should_i_do_tomorrow`,
    `cosmology_nothingness`). Namespace or rename in β.0 so per-name aggregation is
    unambiguous.

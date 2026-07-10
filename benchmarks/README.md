@@ -9,12 +9,17 @@ See `docs/designs/milestone_03_evaluation_framework.md` for the full architectur
 ```
 benchmarks/
   README.md                      # this file
-  default/                       # default suite shipped with the project
-    <category>/
+  cases/                         # the canonical benchmark corpus
+    questions/                   # (topic subdirs: control/ parenting/ philosophy/ practical/ technical/)
+    arguments/ beliefs/ decisions/ dilemmas/ explanations/
+    goals/ instructions/ plans/ prompts/ specifications/
       <case_name>.yaml           # one TestCase per file
+  rubrics/                       # rubric definitions (sibling resource, not a case suite)
+  properties/                    # property suites (sibling resource, not a case suite)
+  simple/                        # experimental scratch suite (not part of the canonical corpus)
 ```
 
-Suites are organized by directory — the formulation-type dirs (`arguments/`, `decisions/`, `dilemmas/`, `goals/`, `plans/`, …) and the legacy `default/` question suite with topic subdirs (`philosophy/`, `practical/`, `control/`). The loader walks all `.yaml`/`.yml` files recursively, so the directory layout is for human convenience.
+`benchmarks/cases/` is the single canonical corpus root: `problemform benchmark benchmarks/cases` evaluates exactly the canonical cases. Its immediate subdirectories are the formulation-type suites (`questions/`, `arguments/`, `decisions/`, …). `rubrics/` and `properties/` are sibling resources — kept out of `cases/` so they are not mistaken for case suites — and `simple/` is an experimental scratch suite. The loader walks `.yaml`/`.yml` files recursively, so directory nesting inside a suite (e.g. `questions/philosophy/`) is for human convenience.
 
 Two distinct axes live in each file:
 
@@ -52,17 +57,21 @@ Field requirements:
 
 ## The control case
 
-The default suite includes `default/control/what_causes_eclipses.yaml`. This is a **structural guard**: a question where ProblemForm may not help (or may actively hurt). Including at least one such case in any suite prevents the benchmark from quietly becoming an advocacy artifact for ProblemForm.
+The questions suite includes `cases/questions/control/what_causes_eclipses.yaml`. This is a **structural guard**: a question where ProblemForm may not help (or may actively hurt). Including at least one such case in any suite prevents the benchmark from quietly becoming an advocacy artifact for ProblemForm.
 
 When adding new suites, **include at least one control case** — a well-formed question where the right outcome may be "no change needed."
 
 ## Running a benchmark
 
 ```bash
-problemform benchmark benchmarks/default \
+# whole canonical corpus (all formulation types)
+problemform benchmark benchmarks/cases \
     --pf-provider openai \
     --answer-provider openai \
     --judge-provider anthropic    # different family from answer, recommended
+
+# or a single type suite, e.g. just questions
+problemform benchmark benchmarks/cases/questions --judge-provider anthropic
 ```
 
 Run results land under `.problemform/eval_runs/<run-id>/` (gitignored). See `problemform benchmark --help` for all flags.

@@ -42,7 +42,7 @@ The current implementation, in its M1–M3A state, is **narrower than** the Cons
 
 Specifically:
 
-- The benchmark corpus at `benchmarks/default/` contains five cases, all questions (`cosmology_nothingness`, `code_review_prep`, `api_design_rest_vs_graphql`, `teach_kid_to_swim`, `what_causes_eclipses`).
+- The benchmark corpus at `benchmarks/cases/questions/` contains five cases, all questions (`cosmology_nothingness`, `code_review_prep`, `api_design_rest_vs_graphql`, `teach_kid_to_swim`, `what_causes_eclipses`).
 - The phase prompts in `problemform/agents/` and the comparative judge in `problemform/eval/prompts/comparative_judge.py` use "question" and "answer" vocabulary throughout.
 - The M3A benchmark framework compares `raw_answer` to `refined_answer`. Its headline metric is shaped around questions.
 

@@ -15,8 +15,8 @@ def runner() -> CliRunner:
     return CliRunner()
 
 
-SUITE = Path(__file__).parent.parent / "benchmarks" / "default"
-DECISIONS_SUITE = Path(__file__).parent.parent / "benchmarks" / "decisions"  # formulation-only
+SUITE = Path(__file__).parent.parent / "benchmarks" / "cases" / "questions"
+DECISIONS_SUITE = Path(__file__).parent.parent / "benchmarks" / "cases" / "decisions"  # formulation-only
 
 
 def _install_three_role_stubs(monkeypatch):

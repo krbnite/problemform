@@ -114,7 +114,7 @@ Select lenses with the repeatable `--rubric <path>` and `--property-suite <path>
 Run the default suite (all three lenses) against an OpenAI ProblemForm + Answer model and an Anthropic judge:
 
 ```bash
-problemform benchmark benchmarks/default \
+problemform benchmark benchmarks/cases/questions \
     --pf-provider openai \
     --answer-provider openai \
     --judge-provider anthropic
@@ -226,7 +226,7 @@ problemform agent meta-questions state.json --output state.json
 **Benchmark the refinement on the shipped corpus, with a cross-family judge:**
 
 ```bash
-problemform benchmark benchmarks/default \
+problemform benchmark benchmarks/cases/questions \
     --pf-provider openai \
     --answer-provider openai \
     --judge-provider anthropic
@@ -340,7 +340,7 @@ For this reason, ProblemForm defaults to `max_iterations=1`. Additional iteratio
 - Pure-Python core: `ProblemState`, all eight phase handlers, both LLM providers, end-to-end pipeline.
 - CLI: eight subcommands covering the analytical phases, synthesis, judgment, full-loop execution, single-phase dispatch, inspection, and export.
 - Evaluation framework (M3A): comparative answer judging, three-way reporting, position randomization, failure containment, YAML corpus loader, shipped starter suite with a control case.
-- Formulation & answer rubrics + property checks (M3B-α): absolute rubric scoring with per-rubric raw/refined deltas, behavioral property checks with pass rates, the M3A-vs-formulation disagreement diagnostic, repeatable `--rubric` / `--property-suite` flags with default-loading, and a first-class non-question benchmark case (`benchmarks/arguments/`). Three lenses reported in parallel, never merged into one score.
+- Formulation & answer rubrics + property checks (M3B-α): absolute rubric scoring with per-rubric raw/refined deltas, behavioral property checks with pass rates, the M3A-vs-formulation disagreement diagnostic, repeatable `--rubric` / `--property-suite` flags with default-loading, and a first-class non-question benchmark case (`benchmarks/cases/arguments/`). Three lenses reported in parallel, never merged into one score.
 
 **Planned (capability-focused; specific technologies are tracked in [`docs/roadmap.md`](docs/roadmap.md)):**
 
