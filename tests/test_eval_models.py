@@ -3,6 +3,7 @@ from datetime import datetime
 import pytest
 
 from problemform.eval.models import (
+    CANONICAL_FORMULATION_TYPES,
     AggregateMetrics,
     BenchmarkReport,
     ComparativeJudgment,
@@ -49,6 +50,35 @@ def test_test_case_round_trips_through_json():
     )
     again = TestCase.model_validate_json(tc.model_dump_json())
     assert again == tc
+
+
+# --- M3B-β.0: formulation_type ----------------------------------------------
+
+
+def test_formulation_type_defaults_to_unspecified():
+    tc = TestCase(name="x", category="topic", raw_formulation="…")
+    assert tc.formulation_type == "unspecified"
+
+
+def test_formulation_type_round_trips():
+    tc = TestCase(name="x", category="topic", raw_formulation="…",
+                  formulation_type="argument")
+    assert TestCase.model_validate_json(tc.model_dump_json()).formulation_type == "argument"
+
+
+def test_legacy_testcase_dict_without_formulation_type_parses():
+    """A pre-β.0 payload (no formulation_type key) deserializes to the default."""
+    tc = TestCase.model_validate(
+        {"name": "x", "category": "topic", "raw_formulation": "…"}
+    )
+    assert tc.formulation_type == "unspecified"
+
+
+def test_canonical_formulation_types_contents():
+    assert CANONICAL_FORMULATION_TYPES == frozenset({
+        "question", "argument", "belief", "decision", "dilemma", "explanation",
+        "goal", "instruction", "plan", "prompt", "specification",
+    })
 
 
 @pytest.mark.parametrize("m", ["material", "minor", "stylistic_only", "degradation"])

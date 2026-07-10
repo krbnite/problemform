@@ -25,12 +25,35 @@ from pydantic import BaseModel, Field
 Materiality = Literal["material", "minor", "stylistic_only", "degradation"]
 
 
+CANONICAL_FORMULATION_TYPES: frozenset[str] = frozenset({
+    "question", "argument", "belief", "decision", "dilemma", "explanation",
+    "goal", "instruction", "plan", "prompt", "specification",
+})
+"""The project's canonical formulation-type vocabulary.
+
+Advisory, **not** enforced: ``TestCase.formulation_type`` is a free ``str`` so the
+corpus can grow without a code change, and unknown values fall back to a generic
+policy in later phases (M3B-β.1). This set simply names the formulation types the
+framework recognizes today.
+"""
+
+
 class TestCase(BaseModel):
+    """A single benchmark input.
+
+    ``formulation_type`` classifies *what kind* of input this is (question,
+    argument, decision, …; see ``CANONICAL_FORMULATION_TYPES``) and is the axis the
+    corpus is organized around. It is distinct from ``category``, which is a free
+    organizational/topic label. As of M3B-β.0 the field is populated but not yet
+    consumed by the engine or report.
+    """
+
     __test__ = False  # tell pytest this is not a test class
 
     name: str
     category: str
     raw_formulation: str  # the user's raw problem formulation, of any type (question, decision, dilemma, belief, argument, goal, …)
+    formulation_type: str = "unspecified"  # canonical formulation type; see CANONICAL_FORMULATION_TYPES. Advisory metadata, not enforced.
     tags: list[str] = Field(default_factory=list)
     expected_properties: list[str] = Field(default_factory=list)
     expected_failure_modes: list[str] = Field(default_factory=list)
