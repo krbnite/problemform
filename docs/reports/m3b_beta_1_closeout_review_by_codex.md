@@ -131,3 +131,35 @@ Commands and checks performed:
 The β.1 implementation is approved architecturally and behaviorally, but I recommend **not formally closing M3B-β.1 until the user-facing benchmark docs/help are updated** to describe conditional answer-lens execution.
 
 **Approve implementation; defer formal closure pending documentation reconciliation.**
+
+---
+
+## Resolution (2026-07-10, Claude Code)
+
+The documentation closure blocker (Must Fix #1) is reconciled — all four user-facing
+surfaces now describe conditional answer-lens execution, `--answer-comparison` /
+`--no-answer-comparison`, lazy answer-provider construction (`not_used` config +
+no same-family warning when the lens is off), and skipped answer artifacts:
+
+- **`README.md`** — evaluation section: added the answer-lens-gating paragraph
+  (answerable vs formulation-only types, flags, lazy provider), noted the Answer role
+  is built only when used, and marked the answer artifacts as answer-applicable only.
+- **`docs/cli_commands.md`** — `benchmark`: added the flag to the invocation, an
+  "Answer-lens gating (M3B-β.1)" subsection, gated the per-case workflow steps,
+  scoped the same-family warning, and marked the answer artifacts conditional.
+- **CLI docstring (`--help`)** — now describes the answerable/formulation-only split
+  and the `--answer-comparison` / `--no-answer-comparison` override.
+- **`benchmarks/README.md`** — `expected_properties` corrected from "stored but not
+  evaluated (Phase A)" to activated formulation-target property checks (M3B-α.4);
+  `formulation_type` documented as governing the answer lens; `expected_failure_modes`
+  noted as still stored-only.
+
+Should Fix #1 addressed: added permanent CLI tests for `--answer-comparison` force-on
+over a formulation-only suite and the omitted-override all-skipped path
+(`benchmarks/decisions`). Suite now **260 passing**.
+
+Deferred (Codex Should Fix #2/#3, non-blocking): distinguishing "all skipped" from
+"all answer-comparison failed" in the `n_completed == 0` report note, and an explicit
+local invariant assertion in `_run_one_case`. Recorded for a future pass.
+
+**M3B-β.1 documentation reconciliation complete — the milestone is ready to close.**

@@ -356,15 +356,22 @@ def benchmark(
 ) -> None:
     """Run a YAML test-case suite end-to-end and write JSON + Markdown reports.
 
-    Uses three provider roles: ProblemForm (refines the prompt), Answer
-    (generates raw and refined answers), and Judge (compares them). Each role
-    has its own --*-provider / --*-model flags; unset flags fall through to
-    the defaults already used by `problemform run`.
+    Uses three provider roles: ProblemForm (refines the formulation), Answer
+    (generates raw and refined answers), and Judge (compares them + scores
+    rubrics/properties). Each role has its own --*-provider / --*-model flags;
+    unset flags fall through to the defaults already used by `problemform run`.
 
-    Rubric and property lenses (M3B) run alongside the M3A comparative judgment:
-    without --rubric / --property-suite the shipped defaults load; explicit flags
-    override the defaults. Each case's expected_properties activate as
-    formulation-target checks in every run.
+    The M3A answer-comparison lens runs only for *answerable* formulation types
+    (question, explanation, instruction, prompt, specification); *formulation-only*
+    types (argument, belief, decision, dilemma, goal, plan) skip it — no answers are
+    generated or judged and no answer artifacts are written. Use
+    --answer-comparison / --no-answer-comparison to force the lens on/off; when no
+    case uses it, the answer provider is not constructed. unspecified/legacy cases
+    stay answerable.
+
+    Rubric and property lenses (M3B) run alongside, on every case: without
+    --rubric / --property-suite the shipped defaults load; explicit flags override
+    them. Each case's expected_properties activate as formulation-target checks.
     """
     # Lazy imports so eval is loaded only when the command runs.
     from problemform.eval.corpus import (

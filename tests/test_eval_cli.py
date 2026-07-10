@@ -16,6 +16,7 @@ def runner() -> CliRunner:
 
 
 SUITE = Path(__file__).parent.parent / "benchmarks" / "default"
+DECISIONS_SUITE = Path(__file__).parent.parent / "benchmarks" / "decisions"  # formulation-only
 
 
 def _install_three_role_stubs(monkeypatch):
@@ -194,3 +195,41 @@ def test_benchmark_no_answer_comparison_builds_no_answer_provider(runner, monkey
     assert report.config["answer_comparison"] == "forced_off"
     combined = (result.stderr or "") + (result.output or "")
     assert "self-preference" not in combined
+
+
+def test_benchmark_formulation_only_suite_skips_answer_lens_by_policy(runner, monkeypatch, tmp_path: Path):
+    """A wholly formulation-only suite (decisions) skips the answer lens by default —
+    no answer provider built, all cases answer-skipped, config records not_used."""
+    pf = _PFStub()
+    judge = _JudgeStub()
+    queue = [pf, judge]  # answer provider must NOT be constructed
+    monkeypatch.setattr(cli_module, "make_provider", lambda *a, **kw: queue.pop(0))
+
+    result = runner.invoke(
+        app,
+        ["benchmark", str(DECISIONS_SUITE), "--output", str(tmp_path / "run"), "--format", "json"],
+    )
+    assert result.exit_code == 0, result.stderr
+    assert queue == []  # pf + judge only
+    report = BenchmarkReport.model_validate_json((tmp_path / "run" / "report.json").read_text())
+    assert report.aggregate.n_answer_skipped == 2
+    assert report.aggregate.n_completed == 0
+    assert report.config["answer_provider"] == "not_used"
+    assert report.config["answer_comparison"] == "per_type_policy"
+
+
+def test_benchmark_force_answer_comparison_on_formulation_only_suite(runner, monkeypatch, tmp_path: Path):
+    """--answer-comparison forces the lens on for formulation-only types: the answer
+    provider is built and both decision cases complete."""
+    _install_three_role_stubs(monkeypatch)  # pf, answer, judge all consumed
+    result = runner.invoke(
+        app,
+        ["benchmark", str(DECISIONS_SUITE), "--answer-comparison",
+         "--output", str(tmp_path / "run"), "--format", "json"],
+    )
+    assert result.exit_code == 0, result.stderr
+    report = BenchmarkReport.model_validate_json((tmp_path / "run" / "report.json").read_text())
+    assert report.aggregate.n_completed == 2
+    assert report.aggregate.n_answer_skipped == 0
+    assert report.config["answer_comparison"] == "forced_on"
+    assert report.config["answer_provider"] != "not_used"

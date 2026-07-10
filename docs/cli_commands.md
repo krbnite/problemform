@@ -218,7 +218,11 @@ Notes:
 
 ## benchmark
 
-Run a YAML test-case suite end-to-end and write JSON + Markdown reports comparing answers produced from the raw question against answers produced from the ProblemForm-refined prompt.
+Run a YAML test-case suite end-to-end and write JSON + Markdown reports. For
+*answerable* formulation types the report compares answers produced from the raw
+formulation against answers from the ProblemForm-refined prompt (the M3A lens);
+for *formulation-only* types that lens is skipped and the signal comes from the
+formulation rubric (see **Answer-lens gating** below).
 
 Invocation:
 
@@ -228,6 +232,7 @@ problemform benchmark <suite-path> \
     [--answer-provider PROV] [--answer-model NAME] \
     [--judge-provider PROV] [--judge-model NAME] \
     [--rubric PATH ...] [--property-suite PATH ...] \
+    [--answer-comparison | --no-answer-comparison] \
     [--max-iterations N] \
     [--output PATH] \
     [--format {md|json}]
@@ -235,9 +240,9 @@ problemform benchmark <suite-path> \
 
 Three provider roles:
 
-- **ProblemForm provider** — runs the refinement pipeline on each test case's raw question.
-- **Answer provider** — generates one answer from the raw question and one from the refined prompt.
-- **Judge provider** — performs a position-randomized comparative judgment between the two answers.
+- **ProblemForm provider** — runs the refinement pipeline on each test case's raw formulation.
+- **Answer provider** — generates one answer from the raw formulation and one from the refined prompt, **for answer-applicable cases only**. It is constructed lazily: if no case in the run uses the answer lens, it is not built at all (see **Answer-lens gating**).
+- **Judge provider** — performs the position-randomized comparative judgment (answerable cases) and scores rubric criteria / property checks.
 
 Each role has its own `--*-provider` / `--*-model` flags. Resolution precedence is:
 
@@ -253,12 +258,35 @@ The `PROBLEMFORM_EVAL_*` variables are scoped to the evaluation framework. They 
 
 Per-case workflow:
 
-1. Refine the raw question via `problemform.core.workflow.run` (default `--max-iterations 1`).
-2. Generate `raw_answer = answer_provider.generate_text(raw_formulation)`.
-3. Generate `refined_answer = answer_provider.generate_text(refined_prompt)`.
-4. Run one position-randomized comparative judgment on the answer pair.
-5. Score any configured rubrics and property checks against the raw and refined subjects (see next).
-6. Persist artifacts and append a result entry.
+1. Refine the raw formulation via `problemform.core.workflow.run` (default `--max-iterations 1`).
+2. **If the case is answer-applicable** (see gating): generate `raw_answer` and
+   `refined_answer` from the answer provider, and run one position-randomized
+   comparative judgment on the pair. Otherwise these three steps are **skipped** —
+   no answers, no judge call, no answer artifacts — and the case is recorded as
+   *answer-skipped*.
+3. Score any configured rubrics and property checks against the raw and refined subjects (see next).
+4. Persist artifacts and append a result entry.
+
+Answer-lens gating (M3B-β.1):
+
+The M3A answer-comparison lens runs only for formulation types whose refinement
+naturally induces a downstream artifact whose quality we care about. The policy lives
+in `problemform/eval/policy.py`:
+
+- **Answerable** (lens runs): `question`, `explanation`, `instruction`, `prompt`, `specification`.
+- **Formulation-only** (lens skipped): `argument`, `belief`, `decision`, `dilemma`, `goal`, `plan`.
+- **`unspecified` / unknown** → answerable (legacy behavior).
+- `--answer-comparison` / `--no-answer-comparison` force the lens on/off for the whole
+  run, overriding the per-type policy; omitting the flag uses the policy.
+
+Consequences of a skip: no answer-provider calls, no comparative judgment
+(`comparative_judgment` is `null`), and no `raw_answer.txt` / `refined_answer.txt`
+written. Such a case counts in `n_answer_skipped` (not `n_errored`) and its Winner
+renders as `skipped`. When **no** case in a run is answer-applicable (a wholly
+formulation-only corpus, or `--no-answer-comparison`), the **answer provider is not
+constructed**, the same-family warning is not emitted, and the report Configuration
+records the Answer role as `not_used`. A `ValueError` is raised up front if an answer
+provider is required by policy but unavailable.
 
 Rubric and property lenses (M3B-α):
 
@@ -280,7 +308,7 @@ Bias mitigations:
 
 - A/B order is randomized per comparison; `presented_first_actual` is recorded.
 - The judge prompt is label-agnostic — the words "raw" and "refined" are not present.
-- When the answer and judge providers share a family, a self-preference warning is emitted to stderr and recorded in `BenchmarkReport.bias_warnings`. The run is **not** blocked.
+- When the answer and judge providers share a family, a self-preference warning is emitted to stderr and recorded in `BenchmarkReport.bias_warnings` — **only when the answer lens actually runs** (skipped for wholly formulation-only / `--no-answer-comparison` runs, where no answer provider is built). The run is **not** blocked.
 
 Failure containment:
 
@@ -295,9 +323,11 @@ Outputs:
   report.json                              # full BenchmarkReport
   report.md                                # human-readable report
   cases/<case-name>/problem_state.json     # full ProblemState per case
-  cases/<case-name>/raw_answer.txt         # raw answer (human inspection)
-  cases/<case-name>/refined_answer.txt     # refined answer (human inspection)
+  cases/<case-name>/raw_answer.txt         # raw answer — answer-applicable cases only
+  cases/<case-name>/refined_answer.txt     # refined answer — answer-applicable cases only
   ```
+
+  The two answer files are **not** written for formulation-only cases (answer lens skipped).
 
 - `--format` (default `md`) selects which of `report.json` / rendered Markdown is printed to stdout for piping. Both files are always written under `--output`.
 

@@ -21,7 +21,7 @@ Two distinct axes live in each file:
 - **`formulation_type`** — *what kind* of input this is (question, argument, decision, …; the canonical vocabulary is `CANONICAL_FORMULATION_TYPES` in `problemform/eval/models.py`). This is the axis the corpus is organized around.
 - **`category`** — a free organizational/**topic** label used for reporting groupings. It is *not* the type (e.g. the legacy question cases use `philosophy`, `technical`, `control`).
 
-## Test-case schema (Phase A)
+## Test-case schema
 
 ```yaml
 schema_version: 1
@@ -45,9 +45,10 @@ notes: |
 Field requirements:
 
 - `name`, `category`, `raw_formulation`: required.
-- `formulation_type`: optional but **recommended** — the canonical input type; defaults to `unspecified` when omitted. See the type list above.
+- `formulation_type`: optional but **recommended** — the canonical input type; defaults to `unspecified` when omitted. See the type list above. Since M3B-β.1 it also governs whether the M3A **answer-comparison lens** runs for the case: answerable types (`question`, `explanation`, `instruction`, `prompt`, `specification`) generate answers and are judged; formulation-only types (`argument`, `belief`, `decision`, `dilemma`, `goal`, `plan`) skip the answer lens and are scored by the formulation rubric instead. See [`docs/cli_commands.md`](../docs/cli_commands.md).
 - All other fields: optional; sensible defaults.
-- `expected_properties` and `expected_failure_modes` are **stored but not evaluated** in Phase A. Phase B introduces property checks that consume these.
+- `expected_properties`: **evaluated.** Since M3B-α.4 each string is activated as a `target=formulation`, `expected=True` **property check** run against the case's raw and refined formulation in every benchmark (formerly "stored but not evaluated"). See [`properties/README.md`](properties/README.md).
+- `expected_failure_modes`: **stored, not yet evaluated** — reserved for a future failure-mode lens.
 
 ## The control case
 

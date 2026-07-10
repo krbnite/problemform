@@ -76,13 +76,15 @@ ProblemForm includes a benchmark harness that measures its own effect. This is d
 
 The evaluation framework is intentionally lightweight and should be viewed as an early measurement system rather than a definitive assessment of quality.
 
-The comparative lens works by comparing the answer an LLM produces when given the **raw question** against the answer it produces when given the **refined prompt**, and asking a third LLM which is better.
+The comparative lens works by comparing the answer an LLM produces when given the **raw formulation** against the answer it produces when given the **refined prompt**, and asking a third LLM which is better.
+
+**The answer lens runs only for *answerable* formulation types.** Because ProblemForm evaluates many input types — not just questions — the comparative answer lens is gated by each case's `formulation_type` through a small policy registry (`problemform/eval/policy.py`). A type is *answerable* when the refinement naturally induces a downstream artifact whose quality we care about: **`question`, `explanation`, `instruction`, `prompt`, `specification`**. *Formulation-only* types — **`argument`, `belief`, `decision`, `dilemma`, `goal`, `plan`** — **skip** the answer lens entirely: no answers are generated, no comparative judgment runs, and no `raw_answer.txt` / `refined_answer.txt` are written. Those cases are reported as **answer-skipped** and their signal comes from the formulation-rubric lens. `unspecified`/legacy cases stay answerable (unchanged behavior). The `--answer-comparison` / `--no-answer-comparison` flags force the lens on or off for the whole run; when no case will use it, the answer provider is **not even constructed**.
 
 **Three provider roles**, configurable independently:
 
 - **ProblemForm provider** — runs the refinement pipeline.
-- **Answer provider** — generates the two answers (raw and refined).
-- **Judge provider** — performs the comparative judgment. Using a different provider family for the judge is recommended; using the same family triggers a self-preference warning but is not blocked.
+- **Answer provider** — generates the two answers (raw and refined). Built **only when at least one case uses the answer lens** (see gating above); otherwise it is omitted and recorded as `not_used`.
+- **Judge provider** — performs the comparative judgment (for answerable cases) and scores rubrics/property checks. A different provider family for the judge is recommended; the same family triggers a self-preference warning (emitted only when the answer lens actually runs) but is not blocked.
 
 Each role accepts its own `--*-provider` / `--*-model` flags on the `benchmark` command and has dedicated environment-variable defaults (`PROBLEMFORM_EVAL_ANSWER_PROVIDER` / `PROBLEMFORM_EVAL_ANSWER_MODEL`, `PROBLEMFORM_EVAL_JUDGE_PROVIDER` / `PROBLEMFORM_EVAL_JUDGE_MODEL`) so that a cross-family evaluation setup can be configured once in `.env` rather than passed on every invocation. The ProblemForm role uses the generic `PROBLEMFORM_PROVIDER` / `PROBLEMFORM_MODEL`. See the Configuration section for the full precedence rules.
 
@@ -124,9 +126,11 @@ Outputs land under `.problemform/eval_runs/<run-id>/`:
 report.json
 report.md
 cases/<case-name>/problem_state.json
-cases/<case-name>/raw_answer.txt
-cases/<case-name>/refined_answer.txt
+cases/<case-name>/raw_answer.txt        # answer-applicable cases only
+cases/<case-name>/refined_answer.txt    # answer-applicable cases only
 ```
+
+(For formulation-only cases the answer lens is skipped, so the two answer files are not written.)
 
 Full design rationale: [`docs/designs/milestone_03_evaluation_framework.md`](docs/designs/milestone_03_evaluation_framework.md). Corpus layout: [`benchmarks/README.md`](benchmarks/README.md).
 
