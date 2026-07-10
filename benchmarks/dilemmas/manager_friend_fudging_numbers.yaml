@@ -1,6 +1,7 @@
 name: manager_friend_fudging_numbers
+formulation_type: dilemma
 category: dilemma
-raw_question: >
+raw_formulation: >
   My best friend is my manager. I just re-analyzed his spreadsheets and found
   that he's been fudging the numbers for over a year. I think this is unethical
   and would report it immediately if it was anyone else I worked with, but I'm
