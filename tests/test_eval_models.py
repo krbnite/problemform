@@ -81,6 +81,27 @@ def test_canonical_formulation_types_contents():
     })
 
 
+# --- M3B-β.1: answer-lens metadata defaults ---------------------------------
+
+
+def test_answer_comparison_applicable_defaults_true():
+    assert _result().answer_comparison_applicable is True
+
+
+def test_n_answer_skipped_defaults_zero_and_is_optional():
+    agg = AggregateMetrics(
+        n_cases=1, n_completed=1, n_errored=0,
+        n_refined_wins=1, n_raw_wins=0, n_ties=0,
+        refined_win_rate=1.0, raw_win_rate=0.0, tie_rate=0.0,
+        material_improvement_rate=1.0, degradation_rate=0.0,
+    )
+    assert agg.n_answer_skipped == 0
+    # Legacy payload without the field still parses.
+    payload = agg.model_dump()
+    del payload["n_answer_skipped"]
+    assert AggregateMetrics.model_validate(payload).n_answer_skipped == 0
+
+
 @pytest.mark.parametrize("m", ["material", "minor", "stylistic_only", "degradation"])
 def test_materiality_literal_accepts_all_four(m):
     j = _judgment(materiality=m)

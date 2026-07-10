@@ -187,6 +187,11 @@ class TestCaseResult(BaseModel):
     raw_answer: str
     refined_answer: str
     comparative_judgment: ComparativeJudgment | None = None
+    # M3B-β.1: whether the M3A answer-comparison lens applied to this case (False when
+    # skipped by formulation-type policy / CLI override). Defaulted True so pre-β.1
+    # report.json deserializes unchanged. A False value means the answer lens was
+    # intentionally not run — NOT that the case is error-free (see errors[]).
+    answer_comparison_applicable: bool = True
     errors: list[str] = Field(default_factory=list)
     timing: dict[str, float] = Field(default_factory=dict)
     rubric_evaluations: list[AbsoluteRubricEvaluation] = Field(default_factory=list)
@@ -198,11 +203,19 @@ class AggregateMetrics(BaseModel):
 
     Rates are computed over ``n_completed``, not ``n_cases``, so errored cases
     do not silently depress the win rate.
+
+    M3B-β.1: the answer-lens buckets are mutually exclusive —
+    ``n_cases == n_completed + n_errored + n_answer_skipped``. ``n_answer_skipped``
+    counts cases whose formulation type (or the CLI override) made the M3A
+    answer-comparison lens not applicable; it is decided by answer-lens status only
+    and is independent of ``errors[]`` (a skipped case may still carry PF/rubric/
+    property errors). Defaults to 0 so pre-β.1 report.json parses unchanged.
     """
 
     n_cases: int
     n_completed: int
     n_errored: int
+    n_answer_skipped: int = 0
     n_refined_wins: int
     n_raw_wins: int
     n_ties: int
