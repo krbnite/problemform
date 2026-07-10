@@ -30,6 +30,12 @@ LLM output quality is bounded by prompt quality. Most prompts are written once, 
 | **Prompts** | Guide an AI system toward producing a desired output. | Clarify objectives, audience, constraints, evaluation criteria, and missing context while preserving the user's intent. | Tests whether ProblemForm can recursively improve AI interactions by producing better prompts. | *"Write a children's story about dragons."* |
 | **Specifications** | Define the desired behavior, requirements, or constraints of a system or product. | Surface ambiguities, distinguish requirements from implementation decisions, clarify edge cases, and identify missing requirements. | Tests whether ProblemForm improves engineering requirements before implementation begins. | *"Design an API that processes online payments."* |
 
+These types fall roughly into two families:
+* Some formulations express what a person is trying to think through — questions, decisions, dilemmas, beliefs, arguments, and goals. 
+* Others are artifacts the person is trying to produce or improve — plans, explanations, instructions, prompts, and specifications. 
+
+ProblemForm is intended to help with both: clarifying cognition and clarifying artifacts.
+
 ---
 
 ## Key concepts
@@ -46,12 +52,6 @@ LLM output quality is bounded by prompt quality. Most prompts are written once, 
   8. **Convergence Evaluation** — compares the latest prompt against the previous one and decides whether further refinement would change the answer.
 - **Prompt-delta-primary convergence.** The judge's verdict is driven by whether a competent answerer would respond meaningfully differently to the two prompt versions. Remaining "things we could still explore" are tracked but informational only.
 - **`LLMProvider` protocol.** OpenAI and Anthropic are both supported through a single `generate_text` / `generate_structured` interface. SDKs are imported lazily, so it is not required to install models from each and every provider.
-
-These types fall roughly into two families:
-* Some formulations express what a person is trying to think through — questions, decisions, dilemmas, beliefs, arguments, and goals. 
-* Others are artifacts the person is trying to produce or improve — plans, explanations, instructions, prompts, and specifications. 
-
-ProblemForm is intended to help with both: clarifying cognition and clarifying artifacts.
 
 ---
 
