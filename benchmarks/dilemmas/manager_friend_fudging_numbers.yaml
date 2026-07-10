@@ -1,12 +1,17 @@
-name: what_should_i_do_tomorrow
-category: decision
-raw_formulation: >
-  What should I do tomorrow?
+name: manager_friend_fudging_numbers
+category: dilemma
+raw_question: >
+  My best friend is my manager. I just re-analyzed his spreadsheets and found
+  that he's been fudging the numbers for over a year. I think this is unethical
+  and would report it immediately if it was anyone else I worked with, but I'm
+  hesitant to ruin my friend's life. What should I do?
 tags:
-  - decision
+  - dilemma
+  - ethics
   - m3b_beta
 expected_properties: []
 notes: >
-  An intentionally underspecified decision. Tests whether ProblemForm identifies
-  the missing context necessary to formulate a meaningful decision problem
-  rather than making arbitrary assumptions.
+  An ethical dilemma involving competing values: loyalty to a friend versus
+  professional integrity and responsibility. Tests whether ProblemForm exposes
+  the underlying value conflict and relevant considerations rather than jumping
+  directly to a recommendation.
