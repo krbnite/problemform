@@ -1,4 +1,5 @@
 name: universe_is_toroidal_and_finite
+formulation_type: belief
 category: belief
 raw_formulation: >
   The universe is toroidal and finite in both time and space.

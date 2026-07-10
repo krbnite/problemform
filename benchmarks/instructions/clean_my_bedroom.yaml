@@ -1,4 +1,5 @@
 name: clean_my_bedroom
+formulation_type: instruction
 category: instruction
 raw_formulation: >
   Clean my bedroom.

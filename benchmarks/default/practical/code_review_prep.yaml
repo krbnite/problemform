@@ -1,5 +1,6 @@
 schema_version: 1
 name: code_review_prep
+formulation_type: question
 category: practical
 tags:
   - software-engineering

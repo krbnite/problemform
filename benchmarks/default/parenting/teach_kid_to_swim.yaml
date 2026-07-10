@@ -1,5 +1,6 @@
 schema_version: 1
 name: teach_kid_to_swim
+formulation_type: question
 category: parenting
 tags:
   - parenting

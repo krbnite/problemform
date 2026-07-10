@@ -1,5 +1,6 @@
 schema_version: 1
 name: api_design_rest_vs_graphql
+formulation_type: question
 category: technical
 tags:
   - api-design

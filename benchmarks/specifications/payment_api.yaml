@@ -1,4 +1,5 @@
 name: payment_api
+formulation_type: specification
 category: specification
 raw_formulation: >
   Design an API that processes online payments.

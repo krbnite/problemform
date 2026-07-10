@@ -1,4 +1,5 @@
 name: online_bookstore_database
+formulation_type: specification
 category: specification
 raw_formulation: >
   Design a database for an online bookstore.

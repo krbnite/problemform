@@ -1,4 +1,5 @@
 name: web_app_money
+formulation_type: instruction
 category: instruction
 raw_formulation: >
   Create a web app that will make me money.

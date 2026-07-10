@@ -1,4 +1,5 @@
 name: dragon_story
+formulation_type: prompt
 category: prompt
 raw_formulation: >
   Write me a story about dragons.

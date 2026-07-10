@@ -1,4 +1,5 @@
 name: clint_eastwood_memoir_rewrite
+formulation_type: prompt
 category: prompt
 raw_formulation: >
   When I give you a blob of text, rewrite it as if it were part of a Clint

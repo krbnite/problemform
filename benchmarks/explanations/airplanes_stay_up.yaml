@@ -1,4 +1,5 @@
 name: airplanes_stay_up
+formulation_type: explanation
 category: explanation
 raw_formulation: >
   I don't understand why airplanes stay in the air.

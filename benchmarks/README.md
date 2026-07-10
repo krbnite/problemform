@@ -14,23 +14,30 @@ benchmarks/
       <case_name>.yaml           # one TestCase per file
 ```
 
-Subdirectory names under a suite (e.g. `philosophy/`, `practical/`, `control/`) are organizational; the loader walks all `.yaml`/`.yml` files recursively. Use `category:` inside each file to drive reporting groupings — the directory layout is for human convenience.
+Suites are organized by directory — the formulation-type dirs (`arguments/`, `decisions/`, `dilemmas/`, `goals/`, `plans/`, …) and the legacy `default/` question suite with topic subdirs (`philosophy/`, `practical/`, `control/`). The loader walks all `.yaml`/`.yml` files recursively, so the directory layout is for human convenience.
+
+Two distinct axes live in each file:
+
+- **`formulation_type`** — *what kind* of input this is (question, argument, decision, …; the canonical vocabulary is `CANONICAL_FORMULATION_TYPES` in `problemform/eval/models.py`). This is the axis the corpus is organized around.
+- **`category`** — a free organizational/**topic** label used for reporting groupings. It is *not* the type (e.g. the legacy question cases use `philosophy`, `technical`, `control`).
 
 ## Test-case schema (Phase A)
 
 ```yaml
 schema_version: 1
 name: my_case_name
-category: philosophy
+formulation_type: question   # what kind of input (question | argument | belief | decision | dilemma | explanation | goal | instruction | plan | prompt | specification)
+category: philosophy          # free organizational/topic label — distinct from formulation_type
 tags:
   - tag1
   - tag2
 raw_formulation: >
-  The user's original question, exactly as they would ask it.
+  The user's original formulation, exactly as they would state it — a question,
+  argument, decision, goal, and so on.
 expected_properties:
-  - things a good answer or refined prompt should do
+  - things a good refined formulation (or answer) should do
 expected_failure_modes:
-  - things a bad answer should NOT do
+  - things a bad refined formulation (or answer) should NOT do
 notes: |
   Free-form notes explaining the intent of this case.
 ```
@@ -38,6 +45,7 @@ notes: |
 Field requirements:
 
 - `name`, `category`, `raw_formulation`: required.
+- `formulation_type`: optional but **recommended** — the canonical input type; defaults to `unspecified` when omitted. See the type list above.
 - All other fields: optional; sensible defaults.
 - `expected_properties` and `expected_failure_modes` are **stored but not evaluated** in Phase A. Phase B introduces property checks that consume these.
 
